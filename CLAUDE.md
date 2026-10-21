@@ -30,6 +30,9 @@ and growth is pulled in that direction. Expired needs push growth away and remov
   Terrain and forest trees are rebuilt only when `markTerrainDirty()` was called; buildings, roads and overlays are
   refilled every frame into InstancedMeshes, one-off objects (markers, glows, previews) come from `take()` pools.
   Floating text is HTML in `#labels`, projected from 3D each frame.
+  Buildings start at the tile's lowest corner and grow by its slope; roads, parks and coverage are draped quads.
+- `terrain.js`: visual-only heightmap on tile corners (water level y = 0, lake beds below), `hAt`, `tileTop`, `tileSpan`,
+  plus the ground and edge-skirt geometry. Heights never affect the simulation.
 - `camera.js`: orthographic SimCity 4 style camera; `pan`, `zoomBy`, `rotate` (90° steps)
 - `ui.js`: DOM panels (tools, requests, log, stats, toast) and the selected `tool`
 - `input.js`: pointer and keyboard handling, `hover`; drag/WASD pan, wheel zoom, Q/E rotate
