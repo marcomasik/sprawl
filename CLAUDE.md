@@ -1,6 +1,6 @@
 # Sprawl
 
-Browser city builder (canvas 2D + vanilla JS). `index.html` loads the compiled `css/style.css` and `js/app.js`.
+Browser city builder (three.js + vanilla JS), isometric SimCity 4 style view. `index.html` loads the compiled `css/style.css` and `js/app.js`.
 Open it directly in a browser, or serve it with `npx serve .`.
 
 ## Build
@@ -25,10 +25,14 @@ and growth is pulled in that direction. Expired needs push growth away and remov
 - `needs.js`: `spawnNeed`, `solveNeed`, `expireNeed`
 - `actions.js`: `canPlace`, `place` (player building and demolishing)
 - `sim.js`: `step` (simulation tick), `income`, `checkProgress`
-- `effects.js`: particles and floating text
-- `render.js`: canvas rendering (`draw`, `resize`)
+- `effects.js`: particle and floating-text data (tile units; `h` is height above ground)
+- `render.js`: three.js scene (`draw`, `resize`, `pickTile`). Tile (x, y) is world (x - W/2 + 0.5, 0, y - H/2 + 0.5).
+  Terrain and forest trees are rebuilt only when `markTerrainDirty()` was called; buildings, roads and overlays are
+  refilled every frame into InstancedMeshes, one-off objects (markers, glows, previews) come from `take()` pools.
+  Floating text is HTML in `#labels`, projected from 3D each frame.
+- `camera.js`: orthographic SimCity 4 style camera; `pan`, `zoomBy`, `rotate` (90° steps)
 - `ui.js`: DOM panels (tools, requests, log, stats, toast) and the selected `tool`
-- `input.js`: pointer and keyboard handling, `hover`
+- `input.js`: pointer and keyboard handling, `hover`; drag/WASD pan, wheel zoom, Q/E rotate
 - `main.js`: frame loop and boot
 - Shared mutable values (`S`, `tool`, `hover`, `particles`) are `export let` and only reassigned in their own module;
   other modules read them through live import bindings or call that module's setter (`selectTool`, `clearEffects`, `markTerrainDirty`).

@@ -3,13 +3,14 @@ import { S, newState, serialize, restore } from "./state.js";
 import { step } from "./sim.js";
 import { cv, draw, resize } from "./render.js";
 import { buildTools, updateTools, updateNeeds, updateStats, saveBest } from "./ui.js";
-import { bindInput } from "./input.js";
+import { bindInput, stepInput } from "./input.js";
 
 let last = 0, uiT = 0;
 function frame(t) {
   const dt = Math.min(0.1, (t - (last || t)) / 1000);
   last = t;
   if (S.started && !S.paused) step(dt * S.speed);
+  stepInput(dt);
   draw(t, dt);
   uiT -= dt;
   if (uiT <= 0) { uiT = 0.15; updateStats(); updateTools(); updateNeeds(); }

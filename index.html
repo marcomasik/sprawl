@@ -31,6 +31,7 @@
     <div class="mapcol">
       <div class="mapwrap" id="mapwrap">
         <canvas class="mapwrap__canvas" id="cv" aria-label="Town map"></canvas>
+        <div class="mapwrap__labels" id="labels"></div>
         <div class="startcard" id="startcard"><div class="startcard__panel">
           <p class="startcard__text">Your settlement grows on its own. Answer its requests at the edges and it grows toward your help.</p>
           <button class="btn primary" id="startbtn" type="button">Found the town</button>
@@ -53,6 +54,7 @@
           <li>Requests appear at its edges. Build the matching service <b class="how__strong">within 3 tiles</b> before the ring runs out.</li>
           <li>Every answered request <b class="how__strong">pulls growth</b> toward it. Ignored ones make families leave that side.</li>
           <li>Homes covered by 2 services grow into houses, 4 into apartments.</li>
+          <li>Drag or <b class="how__strong">WASD</b> to pan, scroll to zoom, <b class="how__strong">Q / E</b> to rotate.</li>
         </ul>
         <p class="best" id="best"></p>
       </section>
