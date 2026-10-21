@@ -7,106 +7,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
-<style>
-*{box-sizing:border-box}
-[hidden]{display:none!important}
-body{margin:0}
-/* Layout: the map is the stage, a narrow request rail on the right, the build tray docked under the map */
-:root{
-  --ink:#131b25;
-  --panel:#1c2632;
-  --raise:#26323f;
-  --line:#33414f;
-  --text:#e8edf1;
-  --muted:#98a6b3;
-  --amber:#f0b44c;
-  --good:#7cc68d;
-  --bad:#e8675a;
-  --f-display:"Big Shoulders Display","Arial Narrow","Roboto Condensed",sans-serif;
-  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  color-scheme:dark;
-}
-html,body{background:var(--ink);color:var(--text)}
-body{font-family:var(--f-body);font-size:15px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 24px}
-.app{max-width:1280px;margin:0 auto;display:grid;gap:12px}
-button{font:inherit;color:inherit}
-button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-
-.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 28px}
-.brand{display:flex;align-items:baseline;gap:12px}
-.brand h1{font-family:var(--f-display);font-weight:800;font-size:2.4rem;line-height:1;letter-spacing:.02em;margin:0;text-transform:uppercase}
-.rank{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);border:1px solid color-mix(in srgb,var(--amber) 45%,transparent);border-radius:99px;padding:2px 9px}
-.stats{display:flex;flex-wrap:wrap;gap:6px 26px;align-items:flex-end}
-.stat{display:grid;gap:1px;min-width:0}
-.stat span{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.stat b{font-family:var(--f-display);font-weight:600;font-size:1.6rem;line-height:1;font-variant-numeric:tabular-nums}
-.stat small{font-family:var(--f-mono);font-size:.7rem;color:var(--good)}
-.coins b{color:var(--amber)}
-.meter{width:110px;height:10px;border-radius:99px;background:var(--raise);overflow:hidden;margin-top:6px}
-.meter i{display:block;height:100%;width:70%;background:var(--good);border-radius:99px;transition:width .3s,background-color .3s}
-.ctrl{display:flex;gap:8px;flex-wrap:wrap}
-.btn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 13px;cursor:pointer;font-weight:500}
-.btn:hover{background:var(--raise)}
-.btn.primary{background:var(--amber);border-color:var(--amber);color:#2a1d06;font-weight:600}
-.btn.warn{border-color:var(--bad);color:var(--bad)}
-
-.stage{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:12px;align-items:start}
-@media (max-width:880px){.stage{grid-template-columns:minmax(0,1fr)}}
-.mapcol{display:grid;gap:10px;min-width:0}
-.mapwrap{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#2d4636}
-canvas{display:block;width:100%;height:auto;cursor:crosshair;touch-action:manipulation}
-.startcard{position:absolute;inset:0;display:grid;place-items:center;background:rgba(14,20,28,.38);padding:16px}
-.startcard div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;display:grid;gap:10px;justify-items:center;text-align:center;max-width:340px}
-.startcard p{margin:0;color:var(--muted);font-size:.9rem}
-.toast{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:6px 14px;font-weight:500;font-size:.9rem;white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;pointer-events:none;transition:opacity .25s}
-
-.tools{display:flex;flex-wrap:wrap;gap:8px}
-.tool{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 12px 7px 9px;cursor:pointer;text-align:left}
-.tool:hover:not(:disabled){background:var(--raise)}
-.tool svg{width:26px;height:26px;flex:none;padding:4px;border-radius:7px;background:var(--c);color:#fffaf0;box-sizing:border-box}
-.tool .t{display:grid;line-height:1.15}
-.tool .t b{font-weight:600;font-size:.92rem}
-.tool .t small{font-family:var(--f-mono);font-size:.68rem;color:var(--muted)}
-.tool kbd{font-family:var(--f-mono);font-size:.66rem;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:2px}
-.tool[aria-pressed="true"]{border-color:var(--amber);background:var(--raise);box-shadow:inset 0 0 0 1px var(--amber)}
-.tool.poor .t small{color:var(--bad)}
-.tool:disabled{opacity:.42;cursor:not-allowed}
-.tool.clear svg{background:var(--raise);color:var(--bad)}
-
-.rail{display:grid;gap:12px;min-width:0}
-.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px;min-width:0}
-.box h2{margin:0;font-family:var(--f-display);font-weight:600;font-size:1.05rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.needs{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.need{width:100%;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:center;background:var(--raise);border:1px solid transparent;border-radius:9px;padding:7px 10px;cursor:pointer;text-align:left}
-.need:hover{border-color:var(--line)}
-.need svg{width:22px;height:22px;grid-row:span 2;color:var(--c)}
-.need b{font-weight:600;font-size:.92rem}
-.need small{font-family:var(--f-mono);font-size:.7rem;color:var(--muted)}
-.need .timer{grid-column:1 / -1;height:4px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
-.need .timer i{display:block;height:100%;background:var(--c);border-radius:99px}
-.need.late .timer i{background:var(--bad)}
-.empty{color:var(--muted);font-size:.88rem;margin:0}
-.log{list-style:none;margin:0;padding:0;display:grid;gap:5px;max-height:220px;overflow-y:auto;font-size:.86rem}
-.log li{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:8px;align-items:baseline}
-.log time{font-family:var(--f-mono);font-size:.68rem;color:var(--muted);white-space:nowrap}
-.log .dot{width:7px;height:7px;border-radius:50%;background:var(--c,var(--muted));transform:translateY(-1px)}
-.how{margin:0;padding-left:18px;display:grid;gap:4px;font-size:.88rem;color:var(--muted)}
-.how b{color:var(--text);font-weight:600}
-.best{font-family:var(--f-mono);font-size:.72rem;color:var(--muted);margin:0}
-@media (prefers-reduced-motion:reduce){.meter i,.toast{transition:none}}
-</style>
+<link rel="stylesheet" href="css/style.css">
 
 </head>
 <body>
 <div class="app">
   <header class="bar">
-    <div class="brand"><h1>Sprawl</h1><span class="rank" id="rank">Hamlet</span></div>
+    <div class="brand"><h1 class="brand__title">Sprawl</h1><span class="brand__rank" id="rank">Hamlet</span></div>
     <div class="stats">
-      <div class="stat"><span>Population</span><b id="pop">0</b></div>
-      <div class="stat coins"><span>Coins</span><b id="coins">0</b><small id="income">+0/s</small></div>
-      <div class="stat"><span>Mood</span><div class="meter" role="meter" aria-label="Town mood" aria-valuemin="0" aria-valuemax="100" id="moodm"><i id="mood"></i></div></div>
-      <div class="stat"><span>Day</span><b id="day">1</b></div>
+      <div class="stat"><span class="stat__label">Population</span><b class="stat__value" id="pop">0</b></div>
+      <div class="stat coins"><span class="stat__label">Coins</span><b class="stat__value" id="coins">0</b><small class="stat__sub" id="income">+0/s</small></div>
+      <div class="stat"><span class="stat__label">Mood</span><div class="meter" role="meter" aria-label="Town mood" aria-valuemin="0" aria-valuemax="100" id="moodm"><i class="meter__fill" id="mood"></i></div></div>
+      <div class="stat"><span class="stat__label">Day</span><b class="stat__value" id="day">1</b></div>
     </div>
     <div class="ctrl">
       <button class="btn primary" id="pause" type="button">Start</button>
@@ -118,9 +30,9 @@ canvas{display:block;width:100%;height:auto;cursor:crosshair;touch-action:manipu
   <div class="stage">
     <div class="mapcol">
       <div class="mapwrap" id="mapwrap">
-        <canvas id="cv" aria-label="Town map"></canvas>
-        <div class="startcard" id="startcard"><div>
-          <p>Your settlement grows on its own. Answer its requests at the edges and it grows toward your help.</p>
+        <canvas class="mapwrap__canvas" id="cv" aria-label="Town map"></canvas>
+        <div class="startcard" id="startcard"><div class="startcard__panel">
+          <p class="startcard__text">Your settlement grows on its own. Answer its requests at the edges and it grows toward your help.</p>
           <button class="btn primary" id="startbtn" type="button">Found the town</button>
         </div></div>
         <div class="toast" id="toast" style="opacity:0"></div>
@@ -130,22 +42,22 @@ canvas{display:block;width:100%;height:auto;cursor:crosshair;touch-action:manipu
 
     <aside class="rail">
       <section class="box">
-        <h2>Requests</h2>
+        <h2 class="box__title">Requests</h2>
         <ul class="needs" id="needs"></ul>
         <p class="empty" id="noneeds">No requests right now. The town is growing along its roads.</p>
       </section>
       <section class="box">
-        <h2>How it works</h2>
+        <h2 class="box__title">How it works</h2>
         <ul class="how">
-          <li>The town builds roads and homes <b>by itself</b>.</li>
-          <li>Requests appear at its edges. Build the matching service <b>within 3 tiles</b> before the ring runs out.</li>
-          <li>Every answered request <b>pulls growth</b> toward it. Ignored ones make families leave that side.</li>
+          <li>The town builds roads and homes <b class="how__strong">by itself</b>.</li>
+          <li>Requests appear at its edges. Build the matching service <b class="how__strong">within 3 tiles</b> before the ring runs out.</li>
+          <li>Every answered request <b class="how__strong">pulls growth</b> toward it. Ignored ones make families leave that side.</li>
           <li>Homes covered by 2 services grow into houses, 4 into apartments.</li>
         </ul>
         <p class="best" id="best"></p>
       </section>
       <section class="box">
-        <h2>Town log</h2>
+        <h2 class="box__title">Town log</h2>
         <ol class="log" id="log"></ol>
       </section>
     </aside>
@@ -734,17 +646,17 @@ function draw(t, dt) {
 }
 
 /* ---------- UI ---------- */
-function svgIcon(type) {
+function svgIcon(type, cls) {
   if (type === "work") {
     let teeth = "";
     for (let k = 0; k < 8; k++) {
       const a = k * Math.PI / 4;
       teeth += `<line x1="${(12 + Math.cos(a) * 6.4).toFixed(2)}" y1="${(12 + Math.sin(a) * 6.4).toFixed(2)}" x2="${(12 + Math.cos(a) * 10.4).toFixed(2)}" y2="${(12 + Math.sin(a) * 10.4).toFixed(2)}"/>`;
     }
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><g stroke="currentColor" stroke-width="3.6" stroke-linecap="round">${teeth}</g><circle cx="12" cy="12" r="5.4" fill="none" stroke="currentColor" stroke-width="4.2"/></svg>`;
+    return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><g stroke="currentColor" stroke-width="3.6" stroke-linecap="round">${teeth}</g><circle cx="12" cy="12" r="5.4" fill="none" stroke="currentColor" stroke-width="4.2"/></svg>`;
   }
-  if (type === "clear") return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg>`;
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[type]}" fill="currentColor"/></svg>`;
+  if (type === "clear") return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg>`;
+  return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[type]}" fill="currentColor"/></svg>`;
 }
 const toolsEl = $("tools");
 function buildTools() {
@@ -756,11 +668,11 @@ function buildTools() {
     b.dataset.type = t;
     b.id = "tool-" + t;
     if (t === "clear") {
-      b.innerHTML = `${svgIcon(t)}<span class="t"><b>Demolish <kbd>X</kbd></b><small>half refund</small></span>`;
+      b.innerHTML = `${svgIcon(t, "tool__icon")}<span class="tool__text"><b class="tool__name">Demolish <kbd class="tool__key">X</kbd></b><small class="tool__cost">half refund</small></span>`;
     } else {
       const d = SVC[t];
       b.style.setProperty("--c", d.color);
-      b.innerHTML = `${svgIcon(t)}<span class="t"><b>${d.name} <kbd>${d.key}</kbd></b><small></small></span>`;
+      b.innerHTML = `${svgIcon(t, "tool__icon")}<span class="tool__text"><b class="tool__name">${d.name} <kbd class="tool__key">${d.key}</kbd></b><small class="tool__cost"></small></span>`;
     }
     b.addEventListener("click", () => selectTool(tool === t ? null : t));
     toolsEl.appendChild(b);
@@ -775,7 +687,7 @@ function updateTools() {
     const d = SVC[t], locked = !S.unlocked.has(t);
     b.disabled = locked;
     b.classList.toggle("poor", !locked && S.coins < d.cost);
-    const sm = b.querySelector("small");
+    const sm = b.querySelector(".tool__cost");
     const txt = locked ? `at ${d.unlock} people` : `${d.cost} coins · ${d.need.toLowerCase()}`;
     if (sm.textContent !== txt) sm.textContent = txt;
   }
@@ -794,14 +706,14 @@ function updateNeeds() {
     const d = SVC[n.type];
     if (!li) {
       li = document.createElement("li");
-      li.innerHTML = `<button type="button" class="need" style="--c:${d.color}">${svgIcon(n.type)}<b>${d.need}</b><small></small><span class="timer"><i></i></span></button>`;
+      li.innerHTML = `<button type="button" class="need" style="--c:${d.color}">${svgIcon(n.type, "need__icon")}<b class="need__name">${d.need}</b><small class="need__info"></small><span class="need__timer"><i class="need__bar"></i></span></button>`;
       li.firstChild.addEventListener("click", () => selectTool(n.type));
       needsEl.appendChild(li);
       needEls.set(n.id, li);
     }
     const left = Math.max(0, Math.ceil(n.life - n.age)), frac = Math.max(0, 1 - n.age / n.life);
-    li.querySelector("small").textContent = `${compass(n.x, n.y).replace("in the ", "")} · ${d.name} · ${left}s`;
-    li.querySelector(".timer i").style.width = (frac * 100).toFixed(1) + "%";
+    li.querySelector(".need__info").textContent = `${compass(n.x, n.y).replace("in the ", "")} · ${d.name} · ${left}s`;
+    li.querySelector(".need__bar").style.width = (frac * 100).toFixed(1) + "%";
     li.firstChild.classList.toggle("late", frac < 0.3);
   }
   $("noneeds").hidden = S.needs.length > 0;
@@ -816,8 +728,9 @@ function renderLog() {
   logEl.innerHTML = "";
   for (const e of S.log) {
     const li = document.createElement("li");
+    li.className = "log__item";
     const c = e.type === "bad" ? "var(--bad)" : e.type ? SVC[e.type].color : "var(--muted)";
-    li.innerHTML = `<time>Day ${e.d}</time><span class="dot" style="--c:${c}"></span><span></span>`;
+    li.innerHTML = `<time class="log__day">Day ${e.d}</time><span class="log__dot" style="--c:${c}"></span><span></span>`;
     li.lastChild.textContent = e.text;
     logEl.appendChild(li);
   }

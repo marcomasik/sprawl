@@ -1,0 +1,11 @@
+{
+  "name": "sprawl",
+  "private": true,
+  "scripts": {
+    "build": "sass --no-source-map src/scss/style.scss css/style.css",
+    "watch": "sass --no-source-map --watch src/scss/style.scss css/style.css"
+  },
+  "devDependencies": {
+    "sass": "^1.106.0"
+  }
+}
