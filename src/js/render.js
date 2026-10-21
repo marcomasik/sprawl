@@ -1,17 +1,18 @@
 /* ---------- rendering ---------- */
 // three.js scene. Tile (x, y) sits at world (x - W/2 + 0.5, h, y - H/2 + 0.5), one unit per tile; heights come from terrain.js.
-// Static terrain is rebuilt when marked dirty; everything else is refilled every frame from S.
+// Static terrain and forests are rebuilt when marked dirty; everything else is refilled every frame from S.
 import * as THREE from "three";
-import { W, H, N, FOREST, SVC, ROOFS, ICON, SOLVE_R } from "./config.js";
+import { W, H, N, FOREST, SVC, ICON, SOLVE_R } from "./config.js";
 import { $, reduce, inb, at, easeOutBack } from "./util.js";
 import { hash } from "./noise.js";
-import { S } from "./state.js";
+import { S, isRoad } from "./state.js";
 import { canPlace } from "./actions.js";
 import { particles, floaters, stepEffects } from "./effects.js";
 import { tool } from "./ui.js";
 import { hover } from "./input.js";
 import { camera, setViewport, updateCamera } from "./camera.js";
-import { computeHeights, groundGeometry, skirtGeometry, hAt, cornerNormal, tileTop, tileSpan } from "./terrain.js";
+import { computeHeights, groundGeometry, skirtGeometry, hAt, cornerH, cornerNormal, tileTop, tileSpan } from "./terrain.js";
+import { models } from "./models.js";
 
 export const cv = $("cv");
 const labelsEl = $("labels");
@@ -33,61 +34,101 @@ scene.add(sun);
 let cssW = 0, cssH = 0, terrainDirty = true;
 const wx = x => x - W / 2 + 0.5, wz = y => y - H / 2 + 0.5;
 
+/* ---------- which model goes where ---------- */
+// Houses by level; a house's roof hue picks the variant.
+const HOUSES = [
+  ["building-type-a", "building-type-c", "building-type-h", "building-type-i", "building-type-g", "building-type-m"].map(n => "suburban/" + n),
+  ["building-type-e", "building-type-l", "building-type-o", "building-type-r", "building-type-s", "building-type-u"].map(n => "suburban/" + n),
+  ["building-a", "building-b", "building-d", "building-f", "building-g"].map(n => "commercial/" + n),
+];
+const HOUSE_FIT = [0.8, 0.92, 0.95];
+const SVC_MODEL = {
+  water: "industrial/water-tower", food: "industrial/building-j", work: "industrial/building-h",
+  health: "commercial/building-c", school: "commercial/building-e", power: "industrial/building-m",
+};
+const FOREST_TREES = ["suburban/tree-large", "suburban/tree-small"];
+// Road pieces by neighbour mask (N=1, E=2, S=4, W=8). Each Kenney piece's own connections at rotation 0
+// are tried in all four 90° turns; turning +90° about y maps E->N, S->E, W->S, N->W.
+const ROAD = [];
+for (const [key, mask] of [["square", 0], ["end", 2], ["straight", 10], ["bend", 12], ["intersection", 14], ["crossroad", 15]]) {
+  let m = mask;
+  for (let k = 0; k < 4; k++) {
+    ROAD[m] ??= ["roads/road-" + key, k * Math.PI / 2];
+    m = (m >> 1) | ((m & 1) << 3);
+  }
+}
+// Kenney models face +z; turn a building toward the first road beside it.
+function facing(x, y, fallback) {
+  for (const [dx, dy, rot] of [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]]) if (isRoad(x + dx, y + dy)) return rot;
+  return fallback ? Math.PI / 2 : 0;
+}
+
 /* ---------- geometry and materials ---------- */
 const boxGeo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
 const flatGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-const coneGeo = new THREE.ConeGeometry(0.5, 1, 6).translate(0, 0.5, 0);
-const ballGeo = new THREE.IcosahedronGeometry(0.5, 0).translate(0, 0.5, 0);
 const ringGeo = new THREE.RingGeometry(0.85, 1, 48).rotateX(-Math.PI / 2);
 const lineRingGeo = new THREE.RingGeometry(0.97, 1, 96).rotateX(-Math.PI / 2);
 const discGeo = new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2);
-const roofGeo = new THREE.BufferGeometry();
-// gable roof over a unit footprint, ridge along x
-roofGeo.setAttribute("position", new THREE.Float32BufferAttribute([
-  -.5, 0, -.5, -.5, 0, .5, -.5, 1, 0,
-  .5, 0, .5, .5, 0, -.5, .5, 1, 0,
-  -.5, 0, .5, .5, 0, .5, .5, 1, 0, -.5, 0, .5, .5, 1, 0, -.5, 1, 0,
-  .5, 0, -.5, -.5, 0, -.5, -.5, 1, 0, .5, 0, -.5, -.5, 1, 0, .5, 1, 0,
-], 3));
-roofGeo.computeVertexNormals();
-const solid = () => new THREE.MeshLambertMaterial({ color: "#ffffff" });
 // Map overlays (rings, glows, previews) ignore depth so slopes and buildings never hide them.
 const overlay = (opacity = 1) => new THREE.MeshBasicMaterial({ transparent: true, opacity, depthWrite: false, depthTest: false });
 
-function instanced(geo, mat, max = N, shadows = true) {
-  const m = new THREE.InstancedMesh(geo, mat, max);
-  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  m.count = 0;
-  m.frustumCulled = false;
-  m.castShadow = m.receiveShadow = shadows;
-  scene.add(m);
-  return m;
-}
-const walls = instanced(boxGeo, solid());
-const roofs = instanced(roofGeo, solid());
-const svcs = instanced(boxGeo, solid());
-const shrubs = instanced(ballGeo, solid(), N * 2);
-const trees = instanced(coneGeo, solid(), N * 3);
-const debris = instanced(boxGeo, solid(), 400, false);
-
-const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), scl = new THREE.Vector3(), col = new THREE.Color(), nrm = new THREE.Vector3();
+const m4 = new THREE.Matrix4(), shear = new THREE.Matrix4(), q = new THREE.Quaternion();
+const pos = new THREE.Vector3(), scl = new THREE.Vector3(), col = new THREE.Color(), nrm = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
-function put(mesh, x, y, z, sx, sy, sz, color, rot = 0) {
-  if (mesh.count >= mesh.instanceMatrix.count) return;
-  q.setFromAxisAngle(UP, rot);
-  m4.compose(pos.set(x, y, z), q, scl.set(sx, sy, sz));
-  mesh.setMatrixAt(mesh.count, m4);
-  if (color) mesh.setColorAt(mesh.count, col.set(color));
-  mesh.count++;
+
+const debris = new THREE.InstancedMesh(boxGeo, new THREE.MeshLambertMaterial({ color: "#ffffff" }), 400);
+debris.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+debris.count = 0;
+debris.frustumCulled = false;
+scene.add(debris);
+
+// One InstancedMesh per model part, created on first use. Forest trees are fixed (refilled with the terrain),
+// every other batch is emptied at the start of each frame and refilled by draw().
+const batches = new Map();
+function batch(key, max) {
+  let b = batches.get(key);
+  if (!b) {
+    const meshes = models[key].parts.map(p => {
+      const m = new THREE.InstancedMesh(p.geometry, p.material, max);
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      m.count = 0;
+      m.frustumCulled = false;
+      m.castShadow = m.receiveShadow = true;
+      scene.add(m);
+      return m;
+    });
+    batches.set(key, b = { meshes, count: 0, max, dirty: true, fixed: FOREST_TREES.includes(key) });
+  }
+  return b;
 }
-function flush(...meshes) {
-  for (const m of meshes) {
-    m.instanceMatrix.needsUpdate = true;
-    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+// slope = [dy/dx, dy/dz] shears the model onto a tilted tile (roads); buildings stay upright.
+function putModel(key, x, y, z, s, rot, slope, max = N) {
+  const b = batch(key, max);
+  if (b.count >= b.max) return;
+  m4.compose(pos.set(0, 0, 0), q.setFromAxisAngle(UP, rot), scl.set(s, s, s));
+  if (slope) m4.premultiply(shear.set(1, 0, 0, 0, slope[0], 1, slope[1], 0, 0, 0, 1, 0, 0, 0, 0, 1));
+  m4.setPosition(x, y, z);
+  for (const m of b.meshes) m.setMatrixAt(b.count, m4);
+  b.count++;
+  b.dirty = true;
+}
+function clearBatches(fixed) {
+  for (const b of batches.values()) if (b.fixed === fixed) { b.count = 0; b.dirty = true; }
+}
+function flushBatches() {
+  for (const b of batches.values()) {
+    if (!b.dirty) continue;
+    for (const m of b.meshes) {
+      m.count = b.count;
+      m.instanceMatrix.clearUpdateRanges();
+      m.instanceMatrix.addUpdateRange(0, b.count * 16);
+      m.instanceMatrix.needsUpdate = true;
+    }
+    b.dirty = false;
   }
 }
 
-// Draped quads follow the terrain: roads, parks and the coverage overlay are refilled into these every frame.
+// Draped quads follow the terrain: lots, parks, road beds and the coverage overlay are refilled into these every frame.
 function draped(mat, max = N) {
   const g = new THREE.BufferGeometry();
   for (const name of ["position", "normal", "color"]) g.setAttribute(name, new THREE.BufferAttribute(new Float32Array(max * 18), 3).setUsage(THREE.DynamicDrawUsage));
@@ -114,13 +155,15 @@ function finishDrape(mesh) {
   for (const name of ["position", "normal", "color"]) g.attributes[name].needsUpdate = true;
   mesh.userData.count = 0;
 }
-const decalMat = new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-const decals = draped(decalMat);
+const decals = draped(new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
 decals.receiveShadow = true;
 const cover = draped(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.24, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
 cover.renderOrder = 1;
+// service lots: the service colour washed toward pavement grey
+const LOT = {};
+for (const t in SVC) LOT[t] = "#" + new THREE.Color(SVC[t].color).lerp(new THREE.Color("#9a9c94"), 0.55).getHexString();
 
-// Pooled one-off objects (markers, glows, previews): take() hands out objects in draw order, the rest get hidden.
+// Pooled one-off objects (markers, badges, previews): take() hands out objects in draw order, the rest get hidden.
 const pools = new Map();
 function take(key, create) {
   let p = pools.get(key);
@@ -165,11 +208,15 @@ function canvasTexture(size, paint) {
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
-const roofIcons = {};
+// round badge floating over each service so its type reads at any zoom
+const badges = {};
 for (const t in SVC) {
-  roofIcons[t] = new THREE.MeshBasicMaterial({
-    transparent: true, depthWrite: false,
-    map: canvasTexture(64, (g, s) => paintIcon(g, t, s / 2, s / 2, s * 0.36, "#fffaf0", SVC[t].color)),
+  badges[t] = new THREE.SpriteMaterial({
+    map: canvasTexture(64, (g, s) => {
+      g.fillStyle = SVC[t].color; circle(g, s / 2, s / 2, s * 0.46); g.fill();
+      g.lineWidth = s * 0.06; g.strokeStyle = "#fffaf0"; circle(g, s / 2, s / 2, s * 0.43); g.stroke();
+      paintIcon(g, t, s / 2, s / 2, s * 0.24, "#fffaf0", SVC[t].color);
+    }),
   });
 }
 const glowTex = canvasTexture(128, (g, s) => {
@@ -207,15 +254,14 @@ function buildTerrain() {
   skirt.geometry.dispose();
   skirt.geometry = skirtGeometry();
 
-  trees.count = 0;
+  clearBatches(true);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (S.terrain[at(x, y)] !== FOREST || S.build[at(x, y)]) continue;
     for (let k = 0; k < 3; k++) {
-      const ox = 0.22 + hash(x, y, k + 3) * 0.56, oz = 0.22 + hash(x, y, k + 9) * 0.56, r = 0.2 + hash(x, y, k + 17) * 0.1;
-      put(trees, x - W / 2 + ox, hAt(x + ox, y + oz) - 0.05, y - H / 2 + oz, r * 2, r * 4, r * 2, k === 1 ? "#57905a" : "#3f7046");
+      const ox = 0.2 + hash(x, y, k + 3) * 0.6, oz = 0.2 + hash(x, y, k + 9) * 0.6, s = 1.3 + hash(x, y, k + 17) * 0.7;
+      putModel(FOREST_TREES[k % 2], x - W / 2 + ox, hAt(x + ox, y + oz) - 0.03, y - H / 2 + oz, s, hash(x, y, k + 23) * Math.PI * 2, null, N * 3);
     }
   }
-  flush(trees);
   terrainDirty = false;
 }
 
@@ -247,39 +293,37 @@ function popScale(b, t, dur) {
   const a = (t - b.born) / dur;
   return a >= 1 ? 1 : Math.max(0, easeOutBack(a));
 }
-// Buildings start at the tile's lowest corner and grow by the slope, so they sit into hillsides instead of floating.
+// Fits a model's larger footprint side to `fit` tiles.
+const fitScale = (key, fit) => fit / Math.max(models[key].size.x, models[key].size.z);
+function drawRoad(x, y) {
+  const mask = (isRoad(x, y - 1) ? 1 : 0) | (isRoad(x + 1, y) ? 2 : 0) | (isRoad(x, y + 1) ? 4 : 0) | (isRoad(x - 1, y) ? 8 : 0);
+  const [key, rot] = ROAD[mask];
+  const h00 = cornerH(x, y), h10 = cornerH(x + 1, y), h01 = cornerH(x, y + 1), h11 = cornerH(x + 1, y + 1);
+  const slope = [(h10 + h11 - h00 - h01) / 2, (h01 + h11 - h00 - h10) / 2];
+  drape(decals, x, y, 0, 0.005, "#6e7280");
+  putModel(key, wx(x), (h00 + h10 + h01 + h11) / 4 + 0.01, wz(y), 1, rot, slope);
+}
+// Buildings stand on the tile's lowest corner, so on slopes they sit into the hillside instead of floating.
 function drawHouse(x, y, b, t) {
   const s = popScale(b, t, 380);
   if (s <= 0.01) return;
-  const [lt, dk] = ROOFS[b.hue], cx = wx(x), cz = wz(y), rot = b.rot ? Math.PI / 2 : 0;
-  const [lo, hi] = tileSpan(x, y), base = Math.max(0, lo), rise = hi - base;
-  if (b.lvl < 3) {
-    const f = (b.lvl === 1 ? 0.5 : 0.64) * s, h = (b.lvl === 1 ? 0.3 : 0.46) * s;
-    put(walls, cx, base, cz, f, h + rise, f, "#ece4d2", rot);
-    put(roofs, cx, base + rise + h, cz, f * 1.08, f * 0.5, f * 1.08, dk, rot);
-  } else {
-    const f = 0.78 * s, h = 1.1 * s;
-    put(walls, cx, base, cz, f, h + rise, f, lt, rot);
-    put(walls, cx, base + rise + h, cz, f * 0.8, 0.06 * s, f * 0.8, dk, rot);
-  }
+  const set = HOUSES[b.lvl - 1], key = set[b.hue % set.length];
+  putModel(key, wx(x), Math.max(0, tileSpan(x, y)[0]), wz(y), fitScale(key, HOUSE_FIT[b.lvl - 1]) * s, facing(x, y, b.rot));
 }
 function drawSvc(x, y, b, t) {
   const s = popScale(b, t, 420);
   if (s <= 0.01) return;
-  const [lo, hi] = tileSpan(x, y), base = Math.max(0, lo), top = hi + 0.55 * s;
-  const f = 0.86 * s, cx = wx(x), cz = wz(y);
-  put(svcs, cx, base, cz, f, top - base, f, SVC[b.type].color);
-  const icon = take("icon:" + b.type, () => new THREE.Mesh(flatGeo, roofIcons[b.type]));
-  icon.position.set(cx, top + 0.01, cz);
-  icon.scale.setScalar(f * 0.8);
+  const key = SVC_MODEL[b.type], fs = fitScale(key, 0.95), base = Math.max(0, tileSpan(x, y)[0]);
+  drape(decals, x, y, 0.03, 0.01, LOT[b.type]);
+  putModel(key, wx(x), base, wz(y), fs * s, facing(x, y, false));
+  const badge = take("badge:" + b.type, () => new THREE.Sprite(badges[b.type]));
+  badge.position.set(wx(x), base + models[key].size.y * fs * s + 0.35, wz(y));
+  badge.scale.setScalar(0.5 * s);
 }
 function drawPark(x, y, b, t) {
   const s = popScale(b, t, 400);
-  drape(decals, x, y, 0.5 - 0.4 * s, 0.02, "#9cc77f");
-  for (const [ox, oz, r] of [[-0.14, -0.1, 0.2], [0.16, 0.12, 0.17]]) {
-    const px = x + 0.5 + ox * s, pz = y + 0.5 + oz * s;
-    put(shrubs, px - W / 2, hAt(px, pz), pz - H / 2, r * 2 * s, r * 2 * s, r * 2 * s, "#3f7046");
-  }
+  drape(decals, x, y, 0.5 - 0.45 * s, 0.01, "#9cc77f");
+  putModel("suburban/planter", wx(x), Math.max(0, tileTop(x, y)), wz(y), fitScale("suburban/planter", 0.7) * s, (x + y) % 2 ? 0 : Math.PI / 2);
 }
 function groundRing(key, geo, x, y, scale, color, opacity) {
   const m = take(key, () => new THREE.Mesh(geo, overlay()));
@@ -314,6 +358,16 @@ function drawNeed(n, t) {
   marker.position.set(wx(n.x), tileTop(n.x, n.y) + 1.3, wz(n.y));
   marker.scale.setScalar(1.5);
 }
+// See-through copy of a model for placement previews, tinted red when the spot is invalid.
+function ghost(key, err) {
+  const g = take("ghost:" + key, () => {
+    const grp = new THREE.Group();
+    for (const p of models[key].parts) grp.add(new THREE.Mesh(p.geometry, new THREE.MeshBasicMaterial({ map: p.material.map, transparent: true, opacity: 0.7, depthWrite: false })));
+    return grp;
+  });
+  for (const m of g.children) m.material.color.set(err ? "#ff6f5e" : "#ffffff");
+  return g;
+}
 function drawHover() {
   const err = canPlace(hover.x, hover.y, tool), cx = wx(hover.x), cz = wz(hover.y);
   const [lo, hi] = tileSpan(hover.x, hover.y), base = Math.max(0, lo);
@@ -324,12 +378,12 @@ function drawHover() {
     box.scale.set(0.96, hi - base + 0.08, 0.96);
     return;
   }
-  const def = SVC[tool];
+  const def = SVC[tool], key = SVC_MODEL[tool];
   groundRing("range", lineRingGeo, hover.x, hover.y, def.r, def.color, 0.9);
-  const ghost = take("ghost", () => new THREE.Mesh(boxGeo, overlay(0.7)));
-  ghost.material.color.set(err ? "#e8675a" : def.color);
-  ghost.position.set(cx, base, cz);
-  ghost.scale.set(0.86, hi - base + 0.55, 0.86);
+  const g = ghost(key, err);
+  g.position.set(cx, base, cz);
+  g.rotation.y = facing(hover.x, hover.y, false);
+  g.scale.setScalar(fitScale(key, 0.95));
 }
 function drawLabels() {
   while (labelsEl.children.length < floaters.length) {
@@ -366,11 +420,11 @@ export function draw(t, dt) {
     for (let i = 0; i < N; i++) if (cov[i]) drape(cover, i % W, (i / W) | 0, 0, 0.03, "#ffffff");
   }
 
-  walls.count = roofs.count = svcs.count = shrubs.count = 0;
+  clearBatches(false);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const b = S.build[at(x, y)];
     if (!b) continue;
-    if (b.k === "road") drape(decals, x, y, 0, 0.02, "#5f5f5c");
+    if (b.k === "road") drawRoad(x, y);
     else if (b.k === "house") drawHouse(x, y, b, t);
     else if (b.k === "svc") drawSvc(x, y, b, t);
     else if (b.k === "park") drawPark(x, y, b, t);
@@ -381,10 +435,15 @@ export function draw(t, dt) {
   stepEffects(dt);
   debris.count = 0;
   for (const p of particles) {
+    if (debris.count >= 400) break;
     const s = p.size * Math.max(0, p.life);
-    put(debris, p.x - W / 2, Math.max(0, hAt(p.x, p.z)) + p.h, p.z - H / 2, s, s, s, p.color);
+    m4.compose(pos.set(p.x - W / 2, Math.max(0, hAt(p.x, p.z)) + p.h, p.z - H / 2), q.identity(), scl.set(s, s, s));
+    debris.setMatrixAt(debris.count, m4);
+    debris.setColorAt(debris.count++, col.set(p.color));
   }
-  flush(walls, roofs, svcs, shrubs, debris);
+  debris.instanceMatrix.needsUpdate = true;
+  if (debris.instanceColor) debris.instanceColor.needsUpdate = true;
+  flushBatches();
   finishDrape(decals);
   finishDrape(cover);
   hideUnused();

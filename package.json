@@ -4,10 +4,10 @@
   "scripts": {
     "build": "npm run build:css && npm run build:js",
     "build:css": "sass --no-source-map src/scss/style.scss css/style.css",
-    "build:js": "esbuild src/js/main.js --bundle --format=iife --outfile=js/app.js",
+    "build:js": "esbuild src/js/main.js --bundle --format=iife --loader:.glb=binary --loader:.png=dataurl --outfile=js/app.js",
     "watch": "npm run watch:css & npm run watch:js",
     "watch:css": "sass --no-source-map --watch src/scss/style.scss css/style.css",
-    "watch:js": "esbuild src/js/main.js --bundle --format=iife --outfile=js/app.js --watch=forever"
+    "watch:js": "esbuild src/js/main.js --bundle --format=iife --loader:.glb=binary --loader:.png=dataurl --outfile=js/app.js --watch=forever"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

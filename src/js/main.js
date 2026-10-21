@@ -4,6 +4,7 @@ import { step } from "./sim.js";
 import { cv, draw, resize } from "./render.js";
 import { buildTools, updateTools, updateNeeds, updateStats, saveBest } from "./ui.js";
 import { bindInput, stepInput } from "./input.js";
+import { loadModels } from "./models.js";
 
 let last = 0, uiT = 0;
 function frame(t) {
@@ -31,4 +32,6 @@ function start(data) {
 bindInput();
 try { window.claude?.hot?.snapshot?.(() => ({ state: serialize() })); } catch (e) {}
 const hot = window.claude?.hot;
-if (hot && hot.ready) hot.ready(start); else start(hot?.data ?? {});
+loadModels().then(() => {
+  if (hot && hot.ready) hot.ready(start); else start(hot?.data ?? {});
+});
