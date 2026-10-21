@@ -1,0 +1,22 @@
+body {
+  .how {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 4px;
+    font-size: .88rem;
+    color: var(--muted);
+
+    &__strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+  }
+
+  .best {
+    font-family: var(--f-mono);
+    font-size: .72rem;
+    color: var(--muted);
+    margin: 0;
+  }
+}

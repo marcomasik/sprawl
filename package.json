@@ -2,10 +2,15 @@
   "name": "sprawl",
   "private": true,
   "scripts": {
-    "build": "sass --no-source-map src/scss/style.scss css/style.css",
-    "watch": "sass --no-source-map --watch src/scss/style.scss css/style.css"
+    "build": "npm run build:css && npm run build:js",
+    "build:css": "sass --no-source-map src/scss/style.scss css/style.css",
+    "build:js": "esbuild src/js/main.js --bundle --format=iife --outfile=js/app.js",
+    "watch": "npm run watch:css & npm run watch:js",
+    "watch:css": "sass --no-source-map --watch src/scss/style.scss css/style.css",
+    "watch:js": "esbuild src/js/main.js --bundle --format=iife --outfile=js/app.js --watch=forever"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "sass": "^1.106.0"
   }
 }

@@ -1,0 +1,21 @@
+body {
+  .box {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+
+    &__title {
+      margin: 0;
+      font-family: var(--f-display);
+      font-weight: 600;
+      font-size: 1.05rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+  }
+}

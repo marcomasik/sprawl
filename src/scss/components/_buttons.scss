@@ -1,0 +1,32 @@
+body {
+  .ctrl {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 13px;
+    cursor: pointer;
+    font-weight: 500;
+
+    &:hover {
+      background: var(--raise);
+    }
+
+    &.primary {
+      background: var(--amber);
+      border-color: var(--amber);
+      color: #2a1d06;
+      font-weight: 600;
+    }
+
+    &.warn {
+      border-color: var(--bad);
+      color: var(--bad);
+    }
+  }
+}
