@@ -1,0 +1,9 @@
+// Shared look of the floating HUD panels: dark glass with a faint top bevel
+@mixin panel {
+  background: var(--hud);
+  border: 1px solid var(--hud-line);
+  border-radius: 14px;
+  box-shadow: var(--hud-shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}

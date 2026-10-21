@@ -12,7 +12,30 @@
 </head>
 <body>
 <div class="app">
-  <header class="bar">
+  <div class="mapwrap" id="mapwrap">
+    <canvas class="mapwrap__canvas" id="cv" aria-label="Town map"></canvas>
+    <div class="mapwrap__labels" id="labels"></div>
+  </div>
+
+  <nav class="tools" id="tools" aria-label="Build"></nav>
+
+  <section class="advisor" aria-labelledby="advisor-title">
+    <h2 class="advisor__title" id="advisor-title">Requests</h2>
+    <ul class="needs" id="needs"></ul>
+    <p class="advisor__empty" id="noneeds">No requests right now. The town is growing along its roads.</p>
+  </section>
+
+  <div class="navigator">
+    <canvas class="navigator__map" id="minimap" width="352" height="240" aria-label="Minimap, click to move the view"></canvas>
+    <div class="navigator__buttons">
+      <button class="navbtn" id="rotleft" type="button" aria-label="Rotate left" title="Rotate left (Q)"><svg class="navbtn__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="navbtn" id="zoomout" type="button" aria-label="Zoom out" title="Zoom out (−)"><svg class="navbtn__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
+      <button class="navbtn" id="zoomin" type="button" aria-label="Zoom in" title="Zoom in (+)"><svg class="navbtn__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
+      <button class="navbtn" id="rotright" type="button" aria-label="Rotate right" title="Rotate right (E)"><svg class="navbtn__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v4.5h-4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+  </div>
+
+  <footer class="statusbar">
     <div class="brand"><h1 class="brand__title">Sprawl</h1><span class="brand__rank" id="rank">Hamlet</span></div>
     <div class="stats">
       <div class="stat"><span class="stat__label">Population</span><b class="stat__value" id="pop">0</b></div>
@@ -20,50 +43,41 @@
       <div class="stat"><span class="stat__label">Mood</span><div class="meter" role="meter" aria-label="Town mood" aria-valuemin="0" aria-valuemax="100" id="moodm"><i class="meter__fill" id="mood"></i></div></div>
       <div class="stat"><span class="stat__label">Day</span><b class="stat__value" id="day">1</b></div>
     </div>
+    <p class="ticker" aria-live="polite"><time class="ticker__day" id="tickerday"></time><span class="ticker__text" id="tickertext"></span></p>
+    <div class="speed" role="group" aria-label="Game speed">
+      <button class="speedbtn" id="pause" type="button" aria-label="Pause" title="Pause (Space)"><svg class="speedbtn__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></button>
+      <button class="speedbtn" type="button" data-speed="1" aria-label="Normal speed">1×</button>
+      <button class="speedbtn" type="button" data-speed="2" aria-label="Double speed">2×</button>
+      <button class="speedbtn" type="button" data-speed="3" aria-label="Triple speed">3×</button>
+    </div>
     <div class="ctrl">
-      <button class="btn primary" id="pause" type="button">Start</button>
-      <button class="btn" id="speed" type="button">Speed 1×</button>
+      <button class="btn" id="logbtn" type="button" aria-expanded="false" aria-controls="logpanel">Log</button>
+      <button class="btn" id="helpbtn" type="button" aria-expanded="false" aria-controls="helppanel" aria-label="How it works">?</button>
       <button class="btn" id="newmap" type="button">New map</button>
     </div>
-  </header>
+  </footer>
 
-  <div class="stage">
-    <div class="mapcol">
-      <div class="mapwrap" id="mapwrap">
-        <canvas class="mapwrap__canvas" id="cv" aria-label="Town map"></canvas>
-        <div class="mapwrap__labels" id="labels"></div>
-        <div class="startcard" id="startcard"><div class="startcard__panel">
-          <p class="startcard__text">Your settlement grows on its own. Answer its requests at the edges and it grows toward your help.</p>
-          <button class="btn primary" id="startbtn" type="button">Found the town</button>
-        </div></div>
-        <div class="toast" id="toast" style="opacity:0"></div>
-      </div>
-      <nav class="tools" id="tools" aria-label="Build"></nav>
-    </div>
+  <section class="popover" id="logpanel" aria-labelledby="log-title" hidden>
+    <h2 class="popover__title" id="log-title">Town log</h2>
+    <ol class="log" id="log"></ol>
+  </section>
+  <section class="popover" id="helppanel" aria-labelledby="help-title" hidden>
+    <h2 class="popover__title" id="help-title">How it works</h2>
+    <ul class="how">
+      <li>The town builds roads and homes <b class="how__strong">by itself</b>.</li>
+      <li>Requests appear at its edges. Build the matching service <b class="how__strong">within 3 tiles</b> before the ring runs out.</li>
+      <li>Every answered request <b class="how__strong">pulls growth</b> toward it. Ignored ones make families leave that side.</li>
+      <li>Homes covered by 2 services grow into houses, 4 into apartments.</li>
+      <li>Drag or <b class="how__strong">WASD</b> to pan, scroll to zoom, <b class="how__strong">Q / E</b> to rotate. Click the minimap to jump.</li>
+    </ul>
+    <p class="best" id="best"></p>
+  </section>
 
-    <aside class="rail">
-      <section class="box">
-        <h2 class="box__title">Requests</h2>
-        <ul class="needs" id="needs"></ul>
-        <p class="empty" id="noneeds">No requests right now. The town is growing along its roads.</p>
-      </section>
-      <section class="box">
-        <h2 class="box__title">How it works</h2>
-        <ul class="how">
-          <li>The town builds roads and homes <b class="how__strong">by itself</b>.</li>
-          <li>Requests appear at its edges. Build the matching service <b class="how__strong">within 3 tiles</b> before the ring runs out.</li>
-          <li>Every answered request <b class="how__strong">pulls growth</b> toward it. Ignored ones make families leave that side.</li>
-          <li>Homes covered by 2 services grow into houses, 4 into apartments.</li>
-          <li>Drag or <b class="how__strong">WASD</b> to pan, scroll to zoom, <b class="how__strong">Q / E</b> to rotate.</li>
-        </ul>
-        <p class="best" id="best"></p>
-      </section>
-      <section class="box">
-        <h2 class="box__title">Town log</h2>
-        <ol class="log" id="log"></ol>
-      </section>
-    </aside>
-  </div>
+  <div class="toast" id="toast" style="opacity:0"></div>
+  <div class="startcard" id="startcard"><div class="startcard__panel">
+    <p class="startcard__text">Your settlement grows on its own. Answer its requests at the edges and it grows toward your help.</p>
+    <button class="btn primary" id="startbtn" type="button">Found the town</button>
+  </div></div>
 </div>
 
 <script src="js/app.js"></script>

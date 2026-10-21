@@ -332,9 +332,9 @@
   function mix(a, b, t) {
     const p = parseInt(a.slice(1), 16), q2 = parseInt(b.slice(1), 16);
     const r = Math.round((p >> 16) + ((q2 >> 16) - (p >> 16)) * t);
-    const g = Math.round((p >> 8 & 255) + ((q2 >> 8 & 255) - (p >> 8 & 255)) * t);
+    const g2 = Math.round((p >> 8 & 255) + ((q2 >> 8 & 255) - (p >> 8 & 255)) * t);
     const bl = Math.round((p & 255) + ((q2 & 255) - (p & 255)) * t);
-    return `rgb(${r},${g},${bl})`;
+    return `rgb(${r},${g2},${bl})`;
   }
   function easeOutBack(t) {
     const c1 = 1.70158, c3 = c1 + 1;
@@ -3436,8 +3436,8 @@
      */
     determinant() {
       const te = this.elements;
-      const a = te[0], b = te[1], c2 = te[2], d = te[3], e = te[4], f = te[5], g = te[6], h = te[7], i = te[8];
-      return a * e * i - a * f * h - b * d * i + b * f * g + c2 * d * h - c2 * e * g;
+      const a = te[0], b = te[1], c2 = te[2], d = te[3], e = te[4], f = te[5], g2 = te[6], h = te[7], i = te[8];
+      return a * e * i - a * f * h - b * d * i + b * f * g2 + c2 * d * h - c2 * e * g2;
     }
     /**
      * Inverts this matrix, using the [analytic method](https://en.wikipedia.org/wiki/Invertible_matrix#Analytic_solution).
@@ -8289,12 +8289,12 @@
      * @param {number} [g] - The green component.
      * @param {number} [b] - The blue component.
      */
-    constructor(r, g, b) {
+    constructor(r, g2, b) {
       this.isColor = true;
       this.r = 1;
       this.g = 1;
       this.b = 1;
-      return this.set(r, g, b);
+      return this.set(r, g2, b);
     }
     /**
      * Sets the colors's components from the given values.
@@ -8305,8 +8305,8 @@
      * @param {number} [b] - The blue component.
      * @return {Color} A reference to this color.
      */
-    set(r, g, b) {
-      if (g === void 0 && b === void 0) {
+    set(r, g2, b) {
+      if (g2 === void 0 && b === void 0) {
         const value = r;
         if (value && value.isColor) {
           this.copy(value);
@@ -8316,7 +8316,7 @@
           this.setStyle(value);
         }
       } else {
-        this.setRGB(r, g, b);
+        this.setRGB(r, g2, b);
       }
       return this;
     }
@@ -8356,9 +8356,9 @@
      * @param {string} [colorSpace=ColorManagement.workingColorSpace] - The color space.
      * @return {Color} A reference to this color.
      */
-    setRGB(r, g, b, colorSpace = ColorManagement.workingColorSpace) {
+    setRGB(r, g2, b, colorSpace = ColorManagement.workingColorSpace) {
       this.r = r;
-      this.g = g;
+      this.g = g2;
       this.b = b;
       ColorManagement.colorSpaceToWorking(this, colorSpace);
       return this;
@@ -8582,9 +8582,9 @@
      */
     getHSL(target2, colorSpace = ColorManagement.workingColorSpace) {
       ColorManagement.workingToColorSpace(_color.copy(this), colorSpace);
-      const r = _color.r, g = _color.g, b = _color.b;
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
+      const r = _color.r, g2 = _color.g, b = _color.b;
+      const max = Math.max(r, g2, b);
+      const min = Math.min(r, g2, b);
       let hue, saturation;
       const lightness = (min + max) / 2;
       if (min === max) {
@@ -8595,13 +8595,13 @@
         saturation = lightness <= 0.5 ? delta / (max + min) : delta / (2 - max - min);
         switch (max) {
           case r:
-            hue = (g - b) / delta + (g < b ? 6 : 0);
+            hue = (g2 - b) / delta + (g2 < b ? 6 : 0);
             break;
-          case g:
+          case g2:
             hue = (b - r) / delta + 2;
             break;
           case b:
-            hue = (r - g) / delta + 4;
+            hue = (r - g2) / delta + 4;
             break;
         }
         hue /= 6;
@@ -8633,11 +8633,11 @@
      */
     getStyle(colorSpace = SRGBColorSpace) {
       ColorManagement.workingToColorSpace(_color.copy(this), colorSpace);
-      const r = _color.r, g = _color.g, b = _color.b;
+      const r = _color.r, g2 = _color.g, b = _color.b;
       if (colorSpace !== SRGBColorSpace) {
-        return `color(${colorSpace} ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)})`;
+        return `color(${colorSpace} ${r.toFixed(3)} ${g2.toFixed(3)} ${b.toFixed(3)})`;
       }
-      return `rgb(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)})`;
+      return `rgb(${Math.round(r * 255)},${Math.round(g2 * 255)},${Math.round(b * 255)})`;
     }
     /**
      * Adds the given HSL values to this color's values.
@@ -8796,11 +8796,11 @@
      * @return {Color} A reference to this color.
      */
     applyMatrix3(m) {
-      const r = this.r, g = this.g, b = this.b;
+      const r = this.r, g2 = this.g, b = this.b;
       const e = m.elements;
-      this.r = e[0] * r + e[3] * g + e[6] * b;
-      this.g = e[1] * r + e[4] * g + e[7] * b;
-      this.b = e[2] * r + e[5] * g + e[8] * b;
+      this.r = e[0] * r + e[3] * g2 + e[6] * b;
+      this.g = e[1] * r + e[4] * g2 + e[7] * b;
+      this.b = e[2] * r + e[5] * g2 + e[8] * b;
       return this;
     }
     /**
@@ -23619,11 +23619,11 @@
   function getLuminanceFunction() {
     ColorManagement.getLuminanceCoefficients(_v0);
     const r = _v0.x.toFixed(4);
-    const g = _v0.y.toFixed(4);
+    const g2 = _v0.y.toFixed(4);
     const b = _v0.z.toFixed(4);
     return [
       "float luminance( const in vec3 rgb ) {",
-      `	const vec3 weights = vec3( ${r}, ${g}, ${b} );`,
+      `	const vec3 weights = vec3( ${r}, ${g2}, ${b} );`,
       "	return dot( weights, rgb );",
       "}"
     ].join("\n");
@@ -25029,7 +25029,7 @@
     const matrix4 = new Matrix4();
     const matrix42 = new Matrix4();
     function setup(lights) {
-      let r = 0, g = 0, b = 0;
+      let r = 0, g2 = 0, b = 0;
       for (let i = 0; i < 9; i++) state.probe[i].set(0, 0, 0);
       let sunLength = 0;
       let numSunShadows = 0;
@@ -25061,7 +25061,7 @@
         }
         if (light.isAmbientLight) {
           r += color.r * intensity;
-          g += color.g * intensity;
+          g2 += color.g * intensity;
           b += color.b * intensity;
         } else if (light.isLightProbe) {
           for (let j = 0; j < 9; j++) {
@@ -25185,7 +25185,7 @@
         }
       }
       state.ambient[0] = r;
-      state.ambient[1] = g;
+      state.ambient[1] = g2;
       state.ambient[2] = b;
       const hash2 = state.hash;
       if (hash2.sunLength !== sunLength || hash2.directionalLength !== directionalLength || hash2.pointLength !== pointLength || hash2.spotLength !== spotLength || hash2.rectAreaLength !== rectAreaLength || hash2.hemiLength !== hemiLength || hash2.numSunShadows !== numSunShadows || hash2.numDirectionalShadows !== numDirectionalShadows || hash2.numPointShadows !== numPointShadows || hash2.numSpotShadows !== numSpotShadows || hash2.numSpotMaps !== numSpotMaps || hash2.numLightProbes !== numLightProbes) {
@@ -25715,15 +25715,15 @@
         setLocked: function(lock) {
           locked = lock;
         },
-        setClear: function(r, g, b, a, premultipliedAlpha) {
+        setClear: function(r, g2, b, a, premultipliedAlpha) {
           if (premultipliedAlpha === true) {
             r *= a;
-            g *= a;
+            g2 *= a;
             b *= a;
           }
-          color.set(r, g, b, a);
+          color.set(r, g2, b, a);
           if (currentColorClear.equals(color) === false) {
-            gl.clearColor(r, g, b, a);
+            gl.clearColor(r, g2, b, a);
             currentColorClear.copy(color);
           }
         },
@@ -29912,17 +29912,17 @@ void main() {
             const clearColor = background.getClearColor();
             const a = background.getClearAlpha();
             const r = clearColor.r;
-            const g = clearColor.g;
+            const g2 = clearColor.g;
             const b = clearColor.b;
             if (isUnsignedType) {
               uintClearColor[0] = r;
-              uintClearColor[1] = g;
+              uintClearColor[1] = g2;
               uintClearColor[2] = b;
               uintClearColor[3] = a;
               _gl.clearBufferuiv(_gl.COLOR, 0, uintClearColor);
             } else {
               intClearColor[0] = r;
-              intClearColor[1] = g;
+              intClearColor[1] = g2;
               intClearColor[2] = b;
               intClearColor[3] = a;
               _gl.clearBufferiv(_gl.COLOR, 0, intClearColor);
@@ -31482,17 +31482,21 @@ void main() {
     S.log.unshift({ d: dayOf(S.time), text, type });
     if (S.log.length > 40) S.log.length = 40;
     renderLog();
+    if (!reduce) $("tickertext").animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 350, easing: "ease-out" });
   }
   function renderLog() {
     logEl.innerHTML = "";
-    for (const e of S.log) {
+    for (const e2 of S.log) {
       const li = document.createElement("li");
       li.className = "log__item";
-      const c2 = e.type === "bad" ? "var(--bad)" : e.type ? SVC[e.type].color : "var(--muted)";
-      li.innerHTML = `<time class="log__day">Day ${e.d}</time><span class="log__dot" style="--c:${c2}"></span><span></span>`;
-      li.lastChild.textContent = e.text;
+      const c2 = e2.type === "bad" ? "var(--bad)" : e2.type ? SVC[e2.type].color : "var(--muted)";
+      li.innerHTML = `<time class="log__day">Day ${e2.d}</time><span class="log__dot" style="--c:${c2}"></span><span></span>`;
+      li.lastChild.textContent = e2.text;
       logEl.appendChild(li);
     }
+    const e = S.log[0];
+    $("tickerday").textContent = e ? `Day ${e.d}` : "";
+    $("tickertext").textContent = e ? e.text : "";
   }
   function toast(text) {
     const el = $("toast");
@@ -31503,6 +31507,7 @@ void main() {
       el.style.opacity = 0;
     }, 2200);
   }
+  var speedEls = document.querySelectorAll(".speedbtn[data-speed]");
   function updateStats() {
     $("pop").textContent = S.pop;
     $("coins").textContent = Math.floor(S.coins);
@@ -31513,13 +31518,8 @@ void main() {
     m.style.backgroundColor = S.mood > 55 ? "var(--good)" : S.mood > 25 ? "var(--amber)" : "var(--bad)";
     $("moodm").setAttribute("aria-valuenow", Math.round(S.mood));
     $("rank").textContent = RANKS[S.rankIdx][1];
-    const p = $("pause");
-    const label = !S.started ? "Start" : S.paused ? "Resume" : "Pause";
-    if (p.textContent !== label) {
-      p.textContent = label;
-      p.classList.toggle("primary", S.paused);
-    }
-    $("speed").textContent = `Speed ${S.speed}\xD7`;
+    $("pause").setAttribute("aria-pressed", String(S.started && S.paused));
+    for (const b of speedEls) b.setAttribute("aria-pressed", String(S.started && !S.paused && S.speed === +b.dataset.speed));
     $("startcard").hidden = S.started;
   }
   function loadBest() {
@@ -31683,6 +31683,10 @@ void main() {
     target.x = Math.max(-W / 2, Math.min(W / 2, target.x));
     target.z = Math.max(-H / 2, Math.min(H / 2, target.z));
   }
+  function centerOn(tx, ty) {
+    target.x = Math.max(-W / 2, Math.min(W / 2, tx - W / 2));
+    target.z = Math.max(-H / 2, Math.min(H / 2, ty - H / 2));
+  }
   function zoomBy(f) {
     zoomGoal = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomGoal * f));
   }
@@ -31703,6 +31707,48 @@ void main() {
     camera.updateProjectionMatrix();
   }
 
+  // src/js/minimap.js
+  var mm = $("minimap");
+  var g = mm.getContext("2d");
+  var BUILD = { road: "#5d6170", park: "#9cc77f" };
+  var HOUSE = ["", "#e2dccd", "#e9e3d4", "#a7adb9"];
+  function drawMinimap() {
+    const sx = mm.width / W, sy = mm.height / H;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = at(x, y), b = S.build[i], t = S.terrain[i];
+      g.fillStyle = b ? b.k === "house" ? HOUSE[b.lvl] : b.k === "svc" ? SVC[b.type].color : BUILD[b.k] : t === WATER ? "#3d86b3" : t === FOREST ? "#4c7c4a" : "#7fae68";
+      g.fillRect(x * sx, y * sy, Math.ceil(sx), Math.ceil(sy));
+    }
+    for (const n2 of S.needs) {
+      g.fillStyle = SVC[n2.type].color;
+      g.strokeStyle = "#fffaf0";
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc((n2.x + 0.5) * sx, (n2.y + 0.5) * sy, sx * 0.9, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+    }
+    g.strokeStyle = "rgba(255,255,255,.9)";
+    g.lineWidth = 2;
+    g.beginPath();
+    viewFootprint().forEach(([x, y], k) => k ? g.lineTo(x * sx, y * sy) : g.moveTo(x * sx, y * sy));
+    g.closePath();
+    g.stroke();
+  }
+  function bindMinimap() {
+    const jump = (e) => {
+      const r = mm.getBoundingClientRect();
+      centerOn((e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H);
+    };
+    mm.addEventListener("pointerdown", (e) => {
+      mm.setPointerCapture(e.pointerId);
+      jump(e);
+    });
+    mm.addEventListener("pointermove", (e) => {
+      if (e.buttons) jump(e);
+    });
+  }
+
   // src/js/input.js
   var hover = null;
   var confirmT = 0;
@@ -31714,6 +31760,12 @@ void main() {
   function startGame() {
     S.started = true;
     S.paused = false;
+  }
+  function closePanels() {
+    for (const b of document.querySelectorAll("[aria-controls]")) {
+      b.setAttribute("aria-expanded", "false");
+      $(b.getAttribute("aria-controls")).hidden = true;
+    }
   }
   function stepInput(dt) {
     let kx = 0, ky = 0;
@@ -31781,9 +31833,27 @@ void main() {
       if (!S.started) startGame();
       else S.paused = !S.paused;
     });
-    $("speed").addEventListener("click", () => {
-      S.speed = S.speed === 1 ? 2 : S.speed === 2 ? 3 : 1;
-    });
+    for (const b of document.querySelectorAll(".speedbtn[data-speed]")) {
+      b.addEventListener("click", () => {
+        S.speed = +b.dataset.speed;
+        startGame();
+      });
+    }
+    $("zoomin").addEventListener("click", () => zoomBy(1.25));
+    $("zoomout").addEventListener("click", () => zoomBy(0.8));
+    $("rotleft").addEventListener("click", () => rotate(-1));
+    $("rotright").addEventListener("click", () => rotate(1));
+    bindMinimap();
+    for (const b of document.querySelectorAll("[aria-controls]")) {
+      b.addEventListener("click", () => {
+        const open = b.getAttribute("aria-expanded") !== "true";
+        closePanels();
+        if (open) {
+          $(b.getAttribute("aria-controls")).hidden = false;
+          b.setAttribute("aria-expanded", "true");
+        }
+      });
+    }
     $("newmap").addEventListener("click", () => {
       const b = $("newmap");
       if (!b.classList.contains("warn")) {
@@ -31843,6 +31913,7 @@ void main() {
       }
       if (e.key === "Escape") {
         selectTool(null);
+        closePanels();
         return;
       }
       if (e.key === " " && !(e.target && e.target.tagName === "BUTTON")) {
@@ -31953,11 +32024,11 @@ void main() {
         cl.push(c.r, c.g, c.b);
       }
     }
-    const g = new BufferGeometry();
-    g.setAttribute("position", new Float32BufferAttribute(p, 3));
-    g.setAttribute("normal", new Float32BufferAttribute(nm, 3));
-    g.setAttribute("color", new Float32BufferAttribute(cl, 3));
-    return g;
+    const g2 = new BufferGeometry();
+    g2.setAttribute("position", new Float32BufferAttribute(p, 3));
+    g2.setAttribute("normal", new Float32BufferAttribute(nm, 3));
+    g2.setAttribute("color", new Float32BufferAttribute(cl, 3));
+    return g2;
   }
   function skirtGeometry() {
     const p = [];
@@ -31974,10 +32045,10 @@ void main() {
       wall(0, y + 1, 0, y);
       wall(W, y, W, y + 1);
     }
-    const g = new BufferGeometry();
-    g.setAttribute("position", new Float32BufferAttribute(p, 3));
-    g.computeVertexNormals();
-    return g;
+    const g2 = new BufferGeometry();
+    g2.setAttribute("position", new Float32BufferAttribute(p, 3));
+    g2.computeVertexNormals();
+    return g2;
   }
 
   // node_modules/three/examples/jsm/utils/BufferGeometryUtils.js
@@ -34853,29 +34924,29 @@ void main() {
     }
   }
   function draped(mat, max = N) {
-    const g = new BufferGeometry();
-    for (const name of ["position", "normal", "color"]) g.setAttribute(name, new BufferAttribute(new Float32Array(max * 18), 3).setUsage(DynamicDrawUsage));
-    const m = new Mesh(g, mat);
+    const g2 = new BufferGeometry();
+    for (const name of ["position", "normal", "color"]) g2.setAttribute(name, new BufferAttribute(new Float32Array(max * 18), 3).setUsage(DynamicDrawUsage));
+    const m = new Mesh(g2, mat);
     m.frustumCulled = false;
     m.userData.count = 0;
     scene.add(m);
     return m;
   }
   function drape(mesh, x, y, inset, lift, color) {
-    const g = mesh.geometry, k = mesh.userData.count++ * 18, a = inset, b = 1 - inset;
+    const g2 = mesh.geometry, k = mesh.userData.count++ * 18, a = inset, b = 1 - inset;
     col.set(color);
     [[a, a], [a, b], [b, a], [b, a], [a, b], [b, b]].forEach(([ox, oy], v) => {
       const px = x + ox, py = y + oy;
-      g.attributes.position.array.set([px - W / 2, hAt(px, py) + lift, py - H / 2], k + v * 3);
+      g2.attributes.position.array.set([px - W / 2, hAt(px, py) + lift, py - H / 2], k + v * 3);
       cornerNormal(Math.round(px), Math.round(py), nrm);
-      g.attributes.normal.array.set([nrm.x, nrm.y, nrm.z], k + v * 3);
-      g.attributes.color.array.set([col.r, col.g, col.b], k + v * 3);
+      g2.attributes.normal.array.set([nrm.x, nrm.y, nrm.z], k + v * 3);
+      g2.attributes.color.array.set([col.r, col.g, col.b], k + v * 3);
     });
   }
   function finishDrape(mesh) {
-    const g = mesh.geometry;
-    g.setDrawRange(0, mesh.userData.count * 6);
-    for (const name of ["position", "normal", "color"]) g.attributes[name].needsUpdate = true;
+    const g2 = mesh.geometry;
+    g2.setDrawRange(0, mesh.userData.count * 6);
+    for (const name of ["position", "normal", "color"]) g2.attributes[name].needsUpdate = true;
     mesh.userData.count = 0;
   }
   var decals = draped(new MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
@@ -34905,36 +34976,36 @@ void main() {
   }
   var ICON2D = {};
   for (const k in ICON) ICON2D[k] = new Path2D(ICON[k]);
-  function circle(g, x, y, r) {
-    g.beginPath();
-    g.arc(x, y, r, 0, Math.PI * 2);
+  function circle(g2, x, y, r) {
+    g2.beginPath();
+    g2.arc(x, y, r, 0, Math.PI * 2);
   }
-  function paintIcon(g, type, cx, cy, r, color, bg) {
-    g.save();
+  function paintIcon(g2, type, cx, cy, r, color, bg) {
+    g2.save();
     if (type === "work") {
-      g.strokeStyle = color;
-      g.lineCap = "round";
-      g.lineWidth = r * 0.34;
+      g2.strokeStyle = color;
+      g2.lineCap = "round";
+      g2.lineWidth = r * 0.34;
       for (let k = 0; k < 8; k++) {
         const a = k * Math.PI / 4;
-        g.beginPath();
-        g.moveTo(cx + Math.cos(a) * r * 0.55, cy + Math.sin(a) * r * 0.55);
-        g.lineTo(cx + Math.cos(a) * r * 0.92, cy + Math.sin(a) * r * 0.92);
-        g.stroke();
+        g2.beginPath();
+        g2.moveTo(cx + Math.cos(a) * r * 0.55, cy + Math.sin(a) * r * 0.55);
+        g2.lineTo(cx + Math.cos(a) * r * 0.92, cy + Math.sin(a) * r * 0.92);
+        g2.stroke();
       }
-      g.fillStyle = color;
-      circle(g, cx, cy, r * 0.62);
-      g.fill();
-      g.fillStyle = bg;
-      circle(g, cx, cy, r * 0.26);
-      g.fill();
+      g2.fillStyle = color;
+      circle(g2, cx, cy, r * 0.62);
+      g2.fill();
+      g2.fillStyle = bg;
+      circle(g2, cx, cy, r * 0.26);
+      g2.fill();
     } else {
-      g.translate(cx - r, cy - r);
-      g.scale(r / 12, r / 12);
-      g.fillStyle = color;
-      g.fill(ICON2D[type]);
+      g2.translate(cx - r, cy - r);
+      g2.scale(r / 12, r / 12);
+      g2.fillStyle = color;
+      g2.fill(ICON2D[type]);
     }
-    g.restore();
+    g2.restore();
   }
   function canvasTexture(size, paint) {
     const c2 = document.createElement("canvas");
@@ -34947,40 +35018,40 @@ void main() {
   var badges = {};
   for (const t in SVC) {
     badges[t] = new SpriteMaterial({
-      map: canvasTexture(64, (g, s) => {
-        g.fillStyle = SVC[t].color;
-        circle(g, s / 2, s / 2, s * 0.46);
-        g.fill();
-        g.lineWidth = s * 0.06;
-        g.strokeStyle = "#fffaf0";
-        circle(g, s / 2, s / 2, s * 0.43);
-        g.stroke();
-        paintIcon(g, t, s / 2, s / 2, s * 0.24, "#fffaf0", SVC[t].color);
+      map: canvasTexture(64, (g2, s) => {
+        g2.fillStyle = SVC[t].color;
+        circle(g2, s / 2, s / 2, s * 0.46);
+        g2.fill();
+        g2.lineWidth = s * 0.06;
+        g2.strokeStyle = "#fffaf0";
+        circle(g2, s / 2, s / 2, s * 0.43);
+        g2.stroke();
+        paintIcon(g2, t, s / 2, s / 2, s * 0.24, "#fffaf0", SVC[t].color);
       })
     });
   }
-  var glowTex = canvasTexture(128, (g, s) => {
-    const gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+  var glowTex = canvasTexture(128, (g2, s) => {
+    const gr = g2.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
     gr.addColorStop(0, "rgba(255,236,170,1)");
     gr.addColorStop(1, "rgba(255,236,170,0)");
-    g.fillStyle = gr;
-    g.fillRect(0, 0, s, s);
+    g2.fillStyle = gr;
+    g2.fillRect(0, 0, s, s);
   });
-  function paintNeed(g, s, n2, def) {
+  function paintNeed(g2, s, n2, def) {
     const c2 = s / 2, R = s * 0.42, frac = Math.max(0, 1 - n2.age / n2.life);
-    g.clearRect(0, 0, s, s);
-    g.fillStyle = "#16202b";
-    circle(g, c2, c2, R);
-    g.fill();
-    g.lineWidth = R * 0.2;
-    g.strokeStyle = "rgba(255,255,255,.16)";
-    circle(g, c2, c2, R * 0.86);
-    g.stroke();
-    g.strokeStyle = frac < 0.3 ? "#e8675a" : def.color;
-    g.beginPath();
-    g.arc(c2, c2, R * 0.86, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
-    g.stroke();
-    paintIcon(g, n2.type, c2, c2, R * 0.5, def.color, "#16202b");
+    g2.clearRect(0, 0, s, s);
+    g2.fillStyle = "#16202b";
+    circle(g2, c2, c2, R);
+    g2.fill();
+    g2.lineWidth = R * 0.2;
+    g2.strokeStyle = "rgba(255,255,255,.16)";
+    circle(g2, c2, c2, R * 0.86);
+    g2.stroke();
+    g2.strokeStyle = frac < 0.3 ? "#e8675a" : def.color;
+    g2.beginPath();
+    g2.arc(c2, c2, R * 0.86, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+    g2.stroke();
+    paintIcon(g2, n2.type, c2, c2, R * 0.5, def.color, "#16202b");
   }
   var ground = new Mesh(new BufferGeometry(), new MeshLambertMaterial({ vertexColors: true }));
   ground.receiveShadow = true;
@@ -35017,11 +35088,17 @@ void main() {
   function resize() {
     const rect = cv.parentElement.getBoundingClientRect();
     cssW = rect.width;
-    cssH = Math.round(Math.min(cssW * 0.62, window.innerHeight * 0.78));
+    cssH = rect.height;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.setSize(cssW, cssH, false);
-    cv.style.height = cssH + "px";
     setViewport(cssW, cssH);
+  }
+  function viewFootprint() {
+    return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x, y]) => {
+      ray.setFromCamera(ndc.set(x, y), camera);
+      const p = ray.ray.intersectPlane(plane, hit);
+      return p ? [p.x + W / 2, p.z + H / 2] : [W / 2, H / 2];
+    });
   }
   var ray = new Raycaster();
   var ndc = new Vector2();
@@ -35106,13 +35183,13 @@ void main() {
     marker.scale.setScalar(1.5);
   }
   function ghost(key, err) {
-    const g = take("ghost:" + key, () => {
+    const g2 = take("ghost:" + key, () => {
       const grp = new Group();
       for (const p of models[key].parts) grp.add(new Mesh(p.geometry, new MeshBasicMaterial({ map: p.material.map, transparent: true, opacity: 0.7, depthWrite: false })));
       return grp;
     });
-    for (const m of g.children) m.material.color.set(err ? "#ff6f5e" : "#ffffff");
-    return g;
+    for (const m of g2.children) m.material.color.set(err ? "#ff6f5e" : "#ffffff");
+    return g2;
   }
   function drawHover() {
     const err = canPlace(hover.x, hover.y, tool), cx = wx(hover.x), cz = wz(hover.y);
@@ -35126,10 +35203,10 @@ void main() {
     }
     const def = SVC[tool], key = SVC_MODEL[tool];
     groundRing("range", lineRingGeo, hover.x, hover.y, def.r, def.color, 0.9);
-    const g = ghost(key, err);
-    g.position.set(cx, base, cz);
-    g.rotation.y = facing(hover.x, hover.y, false);
-    g.scale.setScalar(fitScale(key, 0.95));
+    const g2 = ghost(key, err);
+    g2.position.set(cx, base, cz);
+    g2.rotation.y = facing(hover.x, hover.y, false);
+    g2.scale.setScalar(fitScale(key, 0.95));
   }
   function drawLabels() {
     while (labelsEl.children.length < floaters.length) {
@@ -35350,6 +35427,7 @@ void main() {
       updateStats();
       updateTools();
       updateNeeds();
+      drawMinimap();
     }
     requestAnimationFrame(frame);
   }

@@ -5,12 +5,14 @@
 
 @use "layout/app";
 
-@use "components/brand";
-@use "components/stats";
-@use "components/buttons";
 @use "components/map";
 @use "components/tools";
-@use "components/box";
 @use "components/needs";
+@use "components/navigator";
+@use "components/statusbar";
+@use "components/brand";
+@use "components/stats";
 @use "components/log";
+@use "components/buttons";
+@use "components/popover";
 @use "components/how";

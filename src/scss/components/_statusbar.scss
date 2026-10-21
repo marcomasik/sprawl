@@ -1,0 +1,26 @@
+@use "../base/mixins" as *;
+
+// Status bar along the bottom: city, stats, news ticker, speed and game buttons
+body {
+  .statusbar {
+    @include panel;
+    position: absolute;
+    z-index: 3;
+    left: var(--edge);
+    right: var(--edge);
+    bottom: var(--edge);
+    min-height: var(--bar-h);
+    padding: 8px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 24px;
+  }
+
+  @media (max-width: 720px) {
+    .statusbar {
+      gap: 8px 14px;
+      padding: 8px 10px;
+    }
+  }
+}

@@ -5,6 +5,7 @@ import { cv, draw, resize } from "./render.js";
 import { buildTools, updateTools, updateNeeds, updateStats, saveBest } from "./ui.js";
 import { bindInput, stepInput } from "./input.js";
 import { loadModels } from "./models.js";
+import { drawMinimap } from "./minimap.js";
 
 let last = 0, uiT = 0;
 function frame(t) {
@@ -14,7 +15,7 @@ function frame(t) {
   stepInput(dt);
   draw(t, dt);
   uiT -= dt;
-  if (uiT <= 0) { uiT = 0.15; updateStats(); updateTools(); updateNeeds(); }
+  if (uiT <= 0) { uiT = 0.15; updateStats(); updateTools(); updateNeeds(); drawMinimap(); }
   requestAnimationFrame(frame);
 }
 function start(data) {

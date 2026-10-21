@@ -1,6 +1,6 @@
 /* ---------- UI ---------- */
 import { SVC, TYPES, RANKS, ICON } from "./config.js";
-import { $, compass, dayOf } from "./util.js";
+import { $, reduce, compass, dayOf } from "./util.js";
 import { S } from "./state.js";
 import { income } from "./sim.js";
 
@@ -85,6 +85,7 @@ export function pushLog(text, type) {
   S.log.unshift({ d: dayOf(S.time), text, type });
   if (S.log.length > 40) S.log.length = 40;
   renderLog();
+  if (!reduce) $("tickertext").animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 350, easing: "ease-out" });
 }
 export function renderLog() {
   logEl.innerHTML = "";
@@ -96,6 +97,9 @@ export function renderLog() {
     li.lastChild.textContent = e.text;
     logEl.appendChild(li);
   }
+  const e = S.log[0];
+  $("tickerday").textContent = e ? `Day ${e.d}` : "";
+  $("tickertext").textContent = e ? e.text : "";
 }
 export function toast(text) {
   const el = $("toast");
@@ -104,6 +108,7 @@ export function toast(text) {
   clearTimeout(toastT);
   toastT = setTimeout(() => { el.style.opacity = 0; }, 2200);
 }
+const speedEls = document.querySelectorAll(".speedbtn[data-speed]");
 export function updateStats() {
   $("pop").textContent = S.pop;
   $("coins").textContent = Math.floor(S.coins);
@@ -114,10 +119,8 @@ export function updateStats() {
   m.style.backgroundColor = S.mood > 55 ? "var(--good)" : S.mood > 25 ? "var(--amber)" : "var(--bad)";
   $("moodm").setAttribute("aria-valuenow", Math.round(S.mood));
   $("rank").textContent = RANKS[S.rankIdx][1];
-  const p = $("pause");
-  const label = !S.started ? "Start" : S.paused ? "Resume" : "Pause";
-  if (p.textContent !== label) { p.textContent = label; p.classList.toggle("primary", S.paused); }
-  $("speed").textContent = `Speed ${S.speed}×`;
+  $("pause").setAttribute("aria-pressed", String(S.started && S.paused));
+  for (const b of speedEls) b.setAttribute("aria-pressed", String(S.started && !S.paused && S.speed === +b.dataset.speed));
   $("startcard").hidden = S.started;
 }
 function loadBest() { try { return parseInt(localStorage.getItem("sprawl-best") || "0", 10) || 0; } catch (e) { return 0; } }

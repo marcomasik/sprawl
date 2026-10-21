@@ -1,12 +1,39 @@
 body {
+  // latest log entry in the status bar, like a news ticker
+  .ticker {
+    flex: 1 1 220px;
+    min-width: 0;
+    margin: 0;
+    padding: 6px 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    border: 1px solid var(--hud-line);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, .22);
+    overflow: hidden;
+
+    &__day {
+      font-family: var(--f-mono);
+      font-size: .68rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    &__text {
+      font-size: .88rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
   .log {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
     gap: 5px;
-    max-height: 220px;
-    overflow-y: auto;
     font-size: .86rem;
 
     &__item {
@@ -29,6 +56,12 @@ body {
       border-radius: 50%;
       background: var(--c, var(--muted));
       transform: translateY(-1px);
+    }
+  }
+
+  @media (max-width: 1000px) {
+    .ticker {
+      display: none;
     }
   }
 }

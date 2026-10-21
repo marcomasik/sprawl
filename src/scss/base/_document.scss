@@ -5,14 +5,13 @@ html {
 
 body {
   margin: 0;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--ink);
   color: var(--text);
   font-family: var(--f-body);
   font-size: 15px;
   line-height: 1.45;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 16px 24px;
 
   button {
     font: inherit;

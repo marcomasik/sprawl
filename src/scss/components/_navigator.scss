@@ -1,0 +1,57 @@
+@use "../base/mixins" as *;
+
+// Minimap with zoom and rotate buttons, bottom right above the status bar
+body {
+  .navigator {
+    @include panel;
+    position: absolute;
+    z-index: 2;
+    right: var(--edge);
+    bottom: calc(var(--bar-h) + 2 * var(--edge));
+    padding: 8px;
+    display: grid;
+    gap: 8px;
+
+    &__map {
+      display: block;
+      width: 176px;
+      height: 120px;
+      border-radius: 8px;
+      background: #1d2a22;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    &__buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+  }
+
+  .navbtn {
+    height: 32px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--hud-line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .06);
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, .14);
+    }
+
+    &__icon {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .navigator {
+      display: none;
+    }
+  }
+}

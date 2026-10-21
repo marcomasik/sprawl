@@ -1,42 +1,16 @@
-// Layout: the map is the stage, a narrow request rail on the right, the build tray docked under the map
+// Layout: the map fills the window; tools, advisor, navigator, status bar and popovers float above it
 body {
   .app {
-    max-width: 1280px;
-    margin: 0 auto;
-    display: grid;
-    gap: 12px;
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    --edge: max(12px, env(safe-area-inset-left, 0px));
   }
 
-  .bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px 28px;
-  }
-
-  .stage {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 280px;
-    gap: 12px;
-    align-items: start;
-  }
-
-  .mapcol {
-    display: grid;
-    gap: 10px;
-    min-width: 0;
-  }
-
-  .rail {
-    display: grid;
-    gap: 12px;
-    min-width: 0;
-  }
-
-  @media (max-width: 880px) {
-    .stage {
-      grid-template-columns: minmax(0, 1fr);
+  @media (max-width: 720px) {
+    .app {
+      --edge: 8px;
+      --bar-h: 150px;
     }
   }
 }

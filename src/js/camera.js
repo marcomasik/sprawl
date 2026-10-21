@@ -27,6 +27,11 @@ export function pan(dx, dy) {
   target.x = Math.max(-W / 2, Math.min(W / 2, target.x));
   target.z = Math.max(-H / 2, Math.min(H / 2, target.z));
 }
+// Centres the view on a point in tile units.
+export function centerOn(tx, ty) {
+  target.x = Math.max(-W / 2, Math.min(W / 2, tx - W / 2));
+  target.z = Math.max(-H / 2, Math.min(H / 2, ty - H / 2));
+}
 export function zoomBy(f) { zoomGoal = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomGoal * f)); }
 export function rotate(dir) { azGoal += dir * Math.PI / 2; }
 export function updateCamera(dt) {

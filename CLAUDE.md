@@ -38,15 +38,20 @@ and growth is pulled in that direction. Expired needs push growth away and remov
 - `models.js`: loads the embedded Kenney models (`loadModels`, awaited before boot) into `models["kit/name"]`
   templates, re-centred with their base at y = 0 and switched to Lambert materials. Kenney models face +z.
 - `camera.js`: orthographic SimCity 4 style camera; `pan`, `zoomBy`, `rotate` (90° steps)
-- `ui.js`: DOM panels (tools, requests, log, stats, toast) and the selected `tool`
-- `input.js`: pointer and keyboard handling, `hover`; drag/WASD pan, wheel zoom, Q/E rotate
+- `ui.js`: HUD panels (tool palette, advisor requests, log + ticker, status bar stats and speed state, toast) and the selected `tool`
+- `minimap.js`: north-up overview with the camera outline (`viewFootprint()` from render.js); click/drag calls `centerOn`
+- `input.js`: pointer and keyboard handling, `hover`; drag/WASD pan, wheel zoom, Q/E rotate, speed and nav buttons,
+  Log/Help popovers (any button with `aria-controls` toggles its panel, one open at a time)
 - `main.js`: frame loop and boot
 - Shared mutable values (`S`, `tool`, `hover`, `particles`) are `export let` and only reassigned in their own module;
   other modules read them through live import bindings or call that module's setter (`selectTool`, `clearEffects`, `markTerrainDirty`).
 - `window.claude?.hot` lines in `main.js` are only for the claude.ai artifact viewer and can be removed
 
 ## Styles (src/scss/)
-- `base/` (reset, tokens, document), `layout/_app.scss`, and one partial per UI component in `components/`.
+- `base/` (reset, tokens, document, mixins), `layout/_app.scss`, and one partial per UI component in `components/`.
+- SimCity 4 style HUD: the map fills the window (`.app` is fixed, the canvas follows its size) and everything else floats
+  above it: `.tools` palette (left), `.advisor` (top right), `.navigator` minimap (bottom right), `.statusbar` (bottom),
+  `.popover` panels. Panels share the `panel` mixin from `base/_mixins.scss`; `--edge` and `--bar-h` place them.
 - Class names are BEM; some are generated in JS (`ui.js`: `buildTools`, `updateNeeds`, `renderLog`, `svgIcon(type, cls)`),
   so a renamed class must be changed in both places.
 

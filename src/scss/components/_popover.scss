@@ -1,0 +1,29 @@
+@use "../base/mixins" as *;
+
+// Log and help panels that open above the status bar
+body {
+  .popover {
+    @include panel;
+    position: absolute;
+    z-index: 4;
+    right: var(--edge);
+    bottom: calc(var(--bar-h) + 2 * var(--edge));
+    width: min(340px, calc(100% - 2 * var(--edge)));
+    max-height: 55%;
+    overflow-y: auto;
+    padding: 12px 14px;
+    display: grid;
+    gap: 8px;
+    align-content: start;
+
+    &__title {
+      margin: 0;
+      font-family: var(--f-display);
+      font-weight: 600;
+      font-size: 1.05rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+  }
+}

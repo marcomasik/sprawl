@@ -6,6 +6,7 @@ import { place } from "./actions.js";
 import { clearEffects } from "./effects.js";
 import { cv, pickTile } from "./render.js";
 import { pan, zoomBy, rotate } from "./camera.js";
+import { bindMinimap } from "./minimap.js";
 import { tool, selectTool, buildTools, clearNeedList } from "./ui.js";
 
 export let hover = null;
@@ -16,6 +17,12 @@ const PAN_KEYS = { arrowleft: [-1, 0], a: [-1, 0], arrowright: [1, 0], d: [1, 0]
 const PAN_SPEED = 700;
 
 function startGame() { S.started = true; S.paused = false; }
+function closePanels() {
+  for (const b of document.querySelectorAll("[aria-controls]")) {
+    b.setAttribute("aria-expanded", "false");
+    $(b.getAttribute("aria-controls")).hidden = true;
+  }
+}
 // Held pan keys move the view a fixed screen speed per second.
 export function stepInput(dt) {
   let kx = 0, ky = 0;
@@ -54,7 +61,22 @@ export function bindInput() {
   });
   $("startbtn").addEventListener("click", startGame);
   $("pause").addEventListener("click", () => { if (!S.started) startGame(); else S.paused = !S.paused; });
-  $("speed").addEventListener("click", () => { S.speed = S.speed === 1 ? 2 : S.speed === 2 ? 3 : 1; });
+  for (const b of document.querySelectorAll(".speedbtn[data-speed]")) {
+    b.addEventListener("click", () => { S.speed = +b.dataset.speed; startGame(); });
+  }
+  $("zoomin").addEventListener("click", () => zoomBy(1.25));
+  $("zoomout").addEventListener("click", () => zoomBy(0.8));
+  $("rotleft").addEventListener("click", () => rotate(-1));
+  $("rotright").addEventListener("click", () => rotate(1));
+  bindMinimap();
+  // Log and help popovers: one open at a time, toggled by their buttons
+  for (const b of document.querySelectorAll("[aria-controls]")) {
+    b.addEventListener("click", () => {
+      const open = b.getAttribute("aria-expanded") !== "true";
+      closePanels();
+      if (open) { $(b.getAttribute("aria-controls")).hidden = false; b.setAttribute("aria-expanded", "true"); }
+    });
+  }
   $("newmap").addEventListener("click", () => {
     const b = $("newmap");
     if (!b.classList.contains("warn")) {
@@ -85,7 +107,7 @@ export function bindInput() {
     const t = TYPES.find(k => SVC[k].key === e.key);
     if (t) { selectTool(tool === t ? null : t); return; }
     if (key === "x") { selectTool(tool === "clear" ? null : "clear"); return; }
-    if (e.key === "Escape") { selectTool(null); return; }
+    if (e.key === "Escape") { selectTool(null); closePanels(); return; }
     if (e.key === " " && !(e.target && e.target.tagName === "BUTTON")) {
       e.preventDefault();
       if (!S.started) startGame(); else S.paused = !S.paused;

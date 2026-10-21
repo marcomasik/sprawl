@@ -1,29 +1,48 @@
+@use "../base/mixins" as *;
+
+// Build palette: round tool buttons down the left edge; each label flies out on hover, focus or while selected
 body {
   .tools {
+    @include panel;
+    position: absolute;
+    z-index: 2;
+    left: var(--edge);
+    top: calc(50% - var(--bar-h) / 2);
+    transform: translateY(-50%);
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 8px;
+    padding: 10px 8px;
+    border-radius: 999px;
   }
 
   .tool {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 7px 12px 7px 9px;
+    position: relative;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, .16);
+    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 65%, white), var(--c) 60%, color-mix(in srgb, var(--c) 65%, black));
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .4), inset 0 -2px 4px rgba(0, 0, 0, .25);
     cursor: pointer;
-    text-align: left;
+    transition: transform .12s, box-shadow .12s;
 
     &:hover:not(:disabled) {
-      background: var(--raise);
+      transform: scale(1.08);
+    }
+
+    &:hover,
+    &:focus-visible {
+      --flyout: 1;
     }
 
     &[aria-pressed="true"] {
+      --flyout: 1;
       border-color: var(--amber);
-      background: var(--raise);
-      box-shadow: inset 0 0 0 1px var(--amber);
+      box-shadow: 0 0 0 3px rgba(240, 180, 76, .35), 0 2px 6px rgba(0, 0, 0, .4);
     }
 
     &.poor {
@@ -31,29 +50,38 @@ body {
     }
 
     &:disabled {
-      opacity: .42;
       cursor: not-allowed;
+      filter: grayscale(.85) brightness(.6);
     }
 
     &.clear {
-      --c: var(--raise);
+      --c: #4a5562;
       --icon-color: var(--bad);
+      margin-top: 6px;
     }
 
     &__icon {
-      width: 26px;
-      height: 26px;
-      flex: none;
-      padding: 4px;
-      border-radius: 7px;
-      background: var(--c);
+      width: 24px;
+      height: 24px;
       color: var(--icon-color, #fffaf0);
-      box-sizing: border-box;
+      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .35));
     }
 
     &__text {
+      @include panel;
+      position: absolute;
+      left: calc(100% + 14px);
+      top: 50%;
+      transform: translateY(-50%);
       display: grid;
-      line-height: 1.15;
+      padding: 7px 11px;
+      border-radius: 10px;
+      line-height: 1.2;
+      white-space: nowrap;
+      text-align: left;
+      opacity: var(--flyout, 0);
+      pointer-events: none;
+      transition: opacity .12s;
     }
 
     &__name {
@@ -71,10 +99,23 @@ body {
       font-family: var(--f-mono);
       font-size: .66rem;
       color: var(--muted);
-      border: 1px solid var(--line);
+      border: 1px solid var(--hud-line);
       border-radius: 4px;
       padding: 0 4px;
       margin-left: 2px;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .tool {
+      width: 40px;
+      height: 40px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tool {
+      transition: none;
     }
   }
 }

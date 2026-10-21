@@ -268,11 +268,18 @@ function buildTerrain() {
 export function resize() {
   const rect = cv.parentElement.getBoundingClientRect();
   cssW = rect.width;
-  cssH = Math.round(Math.min(cssW * 0.62, window.innerHeight * 0.78));
+  cssH = rect.height;
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   renderer.setSize(cssW, cssH, false);
-  cv.style.height = cssH + "px";
   setViewport(cssW, cssH);
+}
+// Where the screen corners meet the ground, in tile units, for the minimap's view outline.
+export function viewFootprint() {
+  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x, y]) => {
+    ray.setFromCamera(ndc.set(x, y), camera);
+    const p = ray.ray.intersectPlane(plane, hit);
+    return p ? [p.x + W / 2, p.z + H / 2] : [W / 2, H / 2];
+  });
 }
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(UP, 0), hit = new THREE.Vector3();
 // Picks the terrain surface, or the water surface where the ray would hit a lake bed.
