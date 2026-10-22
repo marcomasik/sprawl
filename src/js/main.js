@@ -1,4 +1,5 @@
 /* ---------- boot ---------- */
+import { $ } from "./util.js";
 import { S, newState, serialize, restore } from "./state.js";
 import { step } from "./sim.js";
 import { cv, draw, resize } from "./render.js";
@@ -27,10 +28,13 @@ function start(data) {
   resize();
   new ResizeObserver(resize).observe(cv.parentElement);
   updateStats();
+  // input only binds once S exists; until then the start button stays disabled
+  bindInput();
+  $("startbtn").disabled = false;
+  $("startbtn").textContent = "Found the town";
   requestAnimationFrame(frame);
 }
 
-bindInput();
 try { window.claude?.hot?.snapshot?.(() => ({ state: serialize() })); } catch (e) {}
 const hot = window.claude?.hot;
 loadModels().then(() => {

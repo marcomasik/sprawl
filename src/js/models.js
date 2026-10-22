@@ -8,7 +8,9 @@ const KITS = {
   suburban: ["building-type-a", "building-type-c", "building-type-h", "building-type-i", "building-type-g", "building-type-m",
     "building-type-e", "building-type-l", "building-type-o", "building-type-r", "building-type-s", "building-type-u",
     "tree-large", "tree-small", "planter"],
-  commercial: ["building-a", "building-b", "building-c", "building-d", "building-f", "building-g", "building-e"],
+  commercial: ["building-a", "building-b", "building-c", "building-d", "building-e", "building-f", "building-g", "building-h",
+    "building-l", "building-m", "building-skyscraper-a", "building-skyscraper-b", "building-skyscraper-c", "building-skyscraper-d",
+    "building-skyscraper-e"],
   industrial: ["water-tower", "building-j", "building-h", "building-m"],
   roads: ["road-straight", "road-bend", "road-intersection", "road-crossroad", "road-end", "road-square"],
 };

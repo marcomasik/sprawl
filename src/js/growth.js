@@ -1,9 +1,9 @@
 /* ---------- growth ---------- */
-import { W, H, N, CX, CY, WATER, FOREST } from "./config.js";
+import { W, H, N, CX, CY, WATER, FOREST, MAX_LVL } from "./config.js";
 import { inb, at, rnd, isLat, now } from "./util.js";
 import { S, isRoad, covCount, attract } from "./state.js";
 import { setRoad, placeHouse } from "./world.js";
-import { burst } from "./effects.js";
+import { burst, floatText } from "./effects.js";
 
 export function growStep() {
   const hc = [], rc = [], t = now();
@@ -40,15 +40,17 @@ export function growStep() {
   const i = list[k], x = i % W, y = (i / W) | 0;
   if (list === hc) placeHouse(x, y, t); else setRoad(x, y, t);
 }
+// Each service type covering a house is worth one level; houses climb (or drop) one level at a time toward that.
 export function upgradeStep() {
   const hs = [];
   for (let i = 0; i < N; i++) if (S.build[i] && S.build[i].k === "house") hs.push(i);
-  for (let n = 0; n < Math.min(6, hs.length); n++) {
-    const i = rnd(hs), b = S.build[i], c = covCount(i);
-    const target = c >= 4 ? 3 : c >= 2 ? 2 : 1;
-    if (b.lvl < target && S.mood >= 35 && Math.random() < 0.45) {
+  for (let n = 0; n < Math.min(16, hs.length); n++) {
+    const i = rnd(hs), b = S.build[i], x = i % W, y = (i / W) | 0;
+    const target = Math.min(MAX_LVL, 1 + covCount(i));
+    if (b.lvl < target && S.mood >= 35 && Math.random() < 0.6) {
       b.lvl++; b.born = now();
-      burst(i % W, (i / W) | 0, "#fff4d6", 5);
-    } else if (b.lvl > target && Math.random() < 0.12) b.lvl--;
+      burst(x, y, "#fff4d6", 5);
+      floatText(x, y, "▲", "#7cc68d");
+    } else if (b.lvl > target && Math.random() < 0.12) { b.lvl--; b.born = now(); }
   }
 }

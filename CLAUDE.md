@@ -16,6 +16,8 @@ The city grows procedurally on its own (roads on a 4-tile block lattice, houses 
 Needs (water, food, jobs, healthcare, education, power) spawn at the city's outskirts.
 When the player builds the matching service within 3 tiles in time, an attractor is added there
 and growth is pulled in that direction. Expired needs push growth away and remove nearby houses.
+House level = 1 + the number of service types covering the tile (max 7, `POP` in config.js); houses climb one level
+at a time while mood ≥ 35 (`upgradeStep`) and render taller per level, from small houses to skyscrapers (`HOUSES` in render.js).
 
 ## Code map (src/js/)
 - `config.js`: constants; `SVC` holds building types, costs, coverage radius, unlock population

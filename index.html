@@ -67,7 +67,7 @@
       <li>The town builds roads and homes <b class="how__strong">by itself</b>.</li>
       <li>Requests appear at its edges. Build the matching service <b class="how__strong">within 3 tiles</b> before the ring runs out.</li>
       <li>Every answered request <b class="how__strong">pulls growth</b> toward it. Ignored ones make families leave that side.</li>
-      <li>Homes covered by 2 services grow into houses, 4 into apartments.</li>
+      <li>Every service type covering a home adds <b class="how__strong">a level</b>: houses grow into blocks and towers, up to 7 levels.</li>
       <li>Drag or <b class="how__strong">WASD</b> to pan, scroll to zoom, <b class="how__strong">Q / E</b> to rotate. Click the minimap to jump.</li>
     </ul>
     <p class="best" id="best"></p>
@@ -76,7 +76,7 @@
   <div class="toast" id="toast" style="opacity:0"></div>
   <div class="startcard" id="startcard"><div class="startcard__panel">
     <p class="startcard__text">Your settlement grows on its own. Answer its requests at the edges and it grows toward your help.</p>
-    <button class="btn primary" id="startbtn" type="button">Found the town</button>
+    <button class="btn primary" id="startbtn" type="button" disabled>Loading…</button>
   </div></div>
 </div>
 

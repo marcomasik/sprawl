@@ -8,7 +8,8 @@ import { centerOn } from "./camera.js";
 
 const mm = $("minimap"), g = mm.getContext("2d");
 const BUILD = { road: "#5d6170", park: "#9cc77f" };
-const HOUSE = ["", "#e2dccd", "#e9e3d4", "#a7adb9"];
+// houses shift from cream to blue-grey as they grow into towers
+const HOUSE = ["", "#e2dccd", "#e9e3d4", "#c9ccd3", "#b5bac4", "#a2a8b4", "#8f96a3", "#7c8493"];
 
 export function drawMinimap() {
   const sx = mm.width / W, sy = mm.height / H;

@@ -2,7 +2,9 @@
 export const W = 44, H = 30, N = W * H, CX = Math.floor(W / 2), CY = Math.floor(H / 2);
 export const GRASS = 0, WATER = 1, FOREST = 2;
 export const SOLVE_R = 3;
-export const POP = [0, 4, 10, 24];
+// residents per house level; a house's level is 1 + the number of service types covering it
+export const POP = [0, 4, 8, 14, 22, 34, 50, 70];
+export const MAX_LVL = POP.length - 1;
 export const SVC = {
   water:  { name: "Well",          need: "Water",      cost: 25,  r: 4, unlock: 0,   color: "#3f9bd1", key: "1" },
   food:   { name: "Farm",          need: "Food",       cost: 40,  r: 5, unlock: 0,   color: "#c99a2e", key: "2" },

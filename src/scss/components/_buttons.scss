@@ -33,6 +33,11 @@ body {
       border-color: var(--bad);
       color: var(--bad);
     }
+
+    &:disabled {
+      opacity: .6;
+      cursor: progress;
+    }
   }
 
   // pause and the three speeds as one segmented control

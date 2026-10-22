@@ -614,6 +614,10 @@ body .btn.warn {
   border-color: var(--bad);
   color: var(--bad);
 }
+body .btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
 body .speed {
   display: flex;
   border: 1px solid var(--hud-line);

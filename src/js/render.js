@@ -35,13 +35,18 @@ let cssW = 0, cssH = 0, terrainDirty = true;
 const wx = x => x - W / 2 + 0.5, wz = y => y - H / 2 + 0.5;
 
 /* ---------- which model goes where ---------- */
-// Houses by level; a house's roof hue picks the variant.
+// Houses by level, each level visibly taller than the last (about 0.45 tiles high at level 1, up to ~3.9 at level 7);
+// a house's roof hue picks the variant.
 const HOUSES = [
-  ["building-type-a", "building-type-c", "building-type-h", "building-type-i", "building-type-g", "building-type-m"].map(n => "suburban/" + n),
-  ["building-type-e", "building-type-l", "building-type-o", "building-type-r", "building-type-s", "building-type-u"].map(n => "suburban/" + n),
-  ["building-a", "building-b", "building-d", "building-f", "building-g"].map(n => "commercial/" + n),
+  ["building-type-a", "building-type-g", "building-type-h", "building-type-i", "building-type-m"].map(n => "suburban/" + n),
+  ["building-type-c", "building-type-e", "building-type-l", "building-type-o", "building-type-r", "building-type-s", "building-type-u"].map(n => "suburban/" + n),
+  ["building-a", "building-b", "building-d", "building-h"].map(n => "commercial/" + n),
+  ["building-f", "building-g", "building-l"].map(n => "commercial/" + n),
+  ["building-skyscraper-a", "building-m"].map(n => "commercial/" + n),
+  ["building-skyscraper-c", "building-skyscraper-e"].map(n => "commercial/" + n),
+  ["building-skyscraper-b", "building-skyscraper-d"].map(n => "commercial/" + n),
 ];
-const HOUSE_FIT = [0.8, 0.92, 0.95];
+const HOUSE_FIT = [0.72, 0.95, 0.95, 0.95, 0.95, 0.95, 1];
 const SVC_MODEL = {
   water: "industrial/water-tower", food: "industrial/building-j", work: "industrial/building-h",
   health: "commercial/building-c", school: "commercial/building-e", power: "industrial/building-m",
@@ -102,10 +107,11 @@ function batch(key, max) {
   return b;
 }
 // slope = [dy/dx, dy/dz] shears the model onto a tilted tile (roads); buildings stay upright.
-function putModel(key, x, y, z, s, rot, slope, max = N) {
+// sy scales height separately, for buildings rising out of the ground.
+function putModel(key, x, y, z, s, rot, slope, max = N, sy = s) {
   const b = batch(key, max);
   if (b.count >= b.max) return;
-  m4.compose(pos.set(0, 0, 0), q.setFromAxisAngle(UP, rot), scl.set(s, s, s));
+  m4.compose(pos.set(0, 0, 0), q.setFromAxisAngle(UP, rot), scl.set(s, sy, s));
   if (slope) m4.premultiply(shear.set(1, 0, 0, 0, slope[0], 1, slope[1], 0, 0, 0, 1, 0, 0, 0, 0, 1));
   m4.setPosition(x, y, z);
   for (const m of b.meshes) m.setMatrixAt(b.count, m4);
@@ -311,11 +317,12 @@ function drawRoad(x, y) {
   putModel(key, wx(x), (h00 + h10 + h01 + h11) / 4 + 0.01, wz(y), 1, rot, slope);
 }
 // Buildings stand on the tile's lowest corner, so on slopes they sit into the hillside instead of floating.
+// New and upgraded houses rise out of the ground at full footprint, with a small overshoot.
 function drawHouse(x, y, b, t) {
-  const s = popScale(b, t, 380);
-  if (s <= 0.01) return;
-  const set = HOUSES[b.lvl - 1], key = set[b.hue % set.length];
-  putModel(key, wx(x), Math.max(0, tileSpan(x, y)[0]), wz(y), fitScale(key, HOUSE_FIT[b.lvl - 1]) * s, facing(x, y, b.rot));
+  const rise = popScale(b, t, 520);
+  if (rise <= 0.01) return;
+  const set = HOUSES[b.lvl - 1], key = set[b.hue % set.length], s = fitScale(key, HOUSE_FIT[b.lvl - 1]);
+  putModel(key, wx(x), Math.max(0, tileSpan(x, y)[0]), wz(y), s, facing(x, y, b.rot), null, N, s * rise);
 }
 function drawSvc(x, y, b, t) {
   const s = popScale(b, t, 420);
