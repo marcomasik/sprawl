@@ -5,6 +5,8 @@ export const $ = id => document.getElementById(id);
 export const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export const inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+// orthogonal neighbours first, then diagonal ones
+export const DIR8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 export const at = (x, y) => y * W + x;
 export const rnd = a => a[(Math.random() * a.length) | 0];
 export const isLat = (x, y) => ((x - CX) % 4 + 4) % 4 === 0 || ((y - CY) % 4 + 4) % 4 === 0;

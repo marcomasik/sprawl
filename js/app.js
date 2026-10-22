@@ -378,6 +378,7 @@
   var $ = (id) => document.getElementById(id);
   var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   var inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+  var DIR8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
   var at = (x, y) => y * W + x;
   var rnd = (a) => a[Math.random() * a.length | 0];
   var isLat = (x, y) => ((x - CX) % 4 + 4) % 4 === 0 || ((y - CY) % 4 + 4) % 4 === 0;
@@ -12032,20 +12033,20 @@
      * @param {boolean} [clampToLine=true] - Whether to clamp the intersection to the line segment.
      * @return {?Vector3} The intersection point. Returns `null` if no intersection is detected.
      */
-    intersectLine(line, target2, clampToLine = true) {
-      const direction = line.delta(_vector1);
+    intersectLine(line2, target2, clampToLine = true) {
+      const direction = line2.delta(_vector1);
       const denominator = this.normal.dot(direction);
       if (denominator === 0) {
-        if (this.distanceToPoint(line.start) === 0) {
-          return target2.copy(line.start);
+        if (this.distanceToPoint(line2.start) === 0) {
+          return target2.copy(line2.start);
         }
         return null;
       }
-      const t = -(line.start.dot(this.normal) + this.constant) / denominator;
+      const t = -(line2.start.dot(this.normal) + this.constant) / denominator;
       if (clampToLine === true && (t < 0 || t > 1)) {
         return null;
       }
-      return target2.copy(line.start).addScaledVector(direction, t);
+      return target2.copy(line2.start).addScaledVector(direction, t);
     }
     /**
      * Returns `true` if the given line segment intersects with (passes through) the plane.
@@ -12053,9 +12054,9 @@
      * @param {Line3} line - The line to test.
      * @return {boolean} Whether the given line segment intersects with the plane or not.
      */
-    intersectsLine(line) {
-      const startSign = this.distanceToPoint(line.start);
-      const endSign = this.distanceToPoint(line.end);
+    intersectsLine(line2) {
+      const startSign = this.distanceToPoint(line2.start);
+      const endSign = this.distanceToPoint(line2.end);
       return startSign < 0 && endSign > 0 || endSign < 0 && startSign > 0;
     }
     /**
@@ -21651,12 +21652,12 @@
         useSolidColor = true;
       }
       for (let i = 0; i < 6; i++) {
-        const col2 = i % 3;
-        if (col2 === 0) {
+        const col3 = i % 3;
+        if (col3 === 0) {
           cubeCamera.up.set(0, upSign[i], 0);
           cubeCamera.position.set(position.x, position.y, position.z);
           cubeCamera.lookAt(position.x + forwardSign[i], position.y, position.z);
-        } else if (col2 === 1) {
+        } else if (col3 === 1) {
           cubeCamera.up.set(0, 0, upSign[i]);
           cubeCamera.position.set(position.x, position.y, position.z);
           cubeCamera.lookAt(position.x, position.y + forwardSign[i], position.z);
@@ -21666,7 +21667,7 @@
           cubeCamera.lookAt(position.x, position.y, position.z + forwardSign[i]);
         }
         const size = this._cubeSize;
-        _setViewport(cubeUVRenderTarget, col2 * size, i > 2 ? size : 0, size, size);
+        _setViewport(cubeUVRenderTarget, col3 * size, i > 2 ? size : 0, size, size);
         renderer2.setRenderTarget(cubeUVRenderTarget);
         if (useSolidColor) {
           renderer2.render(backgroundBox, cubeCamera);
@@ -23615,8 +23616,8 @@
     const from = Math.max(errorLine - 6, 0);
     const to = Math.min(errorLine + 6, lines.length);
     for (let i = from; i < to; i++) {
-      const line = i + 1;
-      lines2.push(`${line === errorLine ? ">" : " "} ${line}: ${lines[i]}`);
+      const line2 = i + 1;
+      lines2.push(`${line2 === errorLine ? ">" : " "} ${line2}: ${lines[i]}`);
     }
     return lines2.join("\n");
   }
@@ -31456,16 +31457,15 @@ void main() {
   }
 
   // src/js/growth.js
-  var DIR4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  var DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
-  var degree = (x, y) => DIR4.filter(([dx, dy]) => isRoad(x + dx, y + dy)).length;
+  var DIR4 = DIR8.slice(0, 4);
+  var DIAG = DIR8.slice(4);
   var organicCut = () => 0.15 + 0.5 * Math.min(1, S.pop / 2e3);
   function network(x, y, n2) {
     const seen = /* @__PURE__ */ new Set([at(x, y)]);
     let front = [[x, y]];
     for (let k = 0; k < n2; k++) {
       const next = [];
-      for (const [fx, fy] of front) for (const [dx, dy] of DIR4) {
+      for (const [fx, fy] of front) for (const [dx, dy] of roadLinks(fx, fy)) {
         if (isRoad(fx + dx, fy + dy) && !seen.has(at(fx + dx, fy + dy))) {
           seen.add(at(fx + dx, fy + dy));
           next.push([fx + dx, fy + dy]);
@@ -31483,28 +31483,50 @@ void main() {
     }
     return true;
   }
+  function diagonalOk(x, y, dx, dy) {
+    const free = (fx, fy) => inb(fx, fy) && !S.build[at(fx, fy)] && S.terrain[at(fx, fy)] !== WATER;
+    return isOrgRoad(x + dx, y + dy) && free(x + dx, y) && free(x, y + dy);
+  }
+  var TURN = [0.8, 0.3, 0.15];
   function organicRoad(x, y) {
-    const r4 = DIR4.filter(([dx, dy]) => isRoad(x + dx, y + dy));
-    if (!r4.length || r4.length > 2) return 0;
+    if (clipped(x, y)) return 0;
+    const parents = DIR8.filter(([dx, dy]) => dx && dy ? diagonalOk(x, y, dx, dy) : isRoad(x + dx, y + dy));
+    if (!parents.length || parents.length > 2) return 0;
     for (const [sx, sy] of DIAG) if (isRoad(x + sx, y) && isRoad(x, y + sy) && isRoad(x + sx, y + sy)) return 0;
-    const [px, py] = r4[0];
+    const [px, py] = parents[0];
     let w;
-    if (r4.length === 2) w = 0.5;
+    if (parents.length === 2) w = 0.5;
     else {
       if (!clearOf(x, y, px, py, 2)) return 0;
-      const deg = degree(x + px, y + py);
-      if (deg === 0) w = 0.5;
-      else if (deg === 1) w = isRoad(x + 2 * px, y + 2 * py) ? 0.75 : 0.45;
-      else if (deg === 2) w = 0.2;
+      const links = roadLinks(x + px, y + py);
+      if (!links.length) w = 0.5;
+      else if (links.length === 1) {
+        const [qx, qy] = links[0];
+        const cos = (qx * px + qy * py) / Math.hypot(qx, qy) / Math.hypot(px, py);
+        w = TURN[Math.round(Math.acos(Math.max(-1, Math.min(1, cos))) / (Math.PI / 4))] ?? 0;
+      } else if (links.length === 2) w = 0.15;
       else return 0;
+      if (px && py) w *= 0.9;
     }
     return w * Math.exp(-3 * Math.abs(tileTop(x, y) - tileTop(x + px, y + py)));
   }
-  function aheadOfDeadEnd(x, y) {
-    return DIR4.some(([dx, dy]) => isRoad(x + dx, y + dy) && degree(x + dx, y + dy) === 1 && isRoad(x + 2 * dx, y + 2 * dy));
+  function streetReserve() {
+    const keep = /* @__PURE__ */ new Set();
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!isOrgRoad(x, y) || roadLinks(x, y).length !== 1) continue;
+      for (const [dx, dy] of DIR8) {
+        if (!inb(x + dx, y + dy) || S.build[at(x + dx, y + dy)] || organicRoad(x + dx, y + dy) <= 0) continue;
+        keep.add(at(x + dx, y + dy));
+        if (dx && dy) {
+          keep.add(at(x + dx, y));
+          keep.add(at(x, y + dy));
+        }
+      }
+    }
+    return keep;
   }
   function growStep() {
-    const hc = [], rc = [], shape = [], t = now(), cut = organicCut();
+    const hc = [], rc = [], shape = [], org = /* @__PURE__ */ new Set(), t = now(), cut = organicCut(), keep = streetReserve();
     for (let y2 = 0; y2 < H; y2++) for (let x2 = 0; x2 < W; x2++) {
       const i2 = at(x2, y2);
       if (S.build[i2] || S.terrain[i2] === WATER || S.needs.some((n2) => n2.x === x2 && n2.y === y2)) continue;
@@ -31513,16 +31535,18 @@ void main() {
         if (w2 > 0) {
           rc.push(i2);
           shape.push(w2);
+          org.add(i2);
         }
-        if (aheadOfDeadEnd(x2, y2) || w2 > 0 && hash(x2, y2, S.seed + 13) < 0.4) continue;
+        if (keep.has(i2) || w2 > 0 && hash(x2, y2, S.seed + 13) < 0.4) continue;
       } else if (isLat(x2, y2)) {
         const p = DIR4.find(([dx, dy]) => isRoad(x2 + dx, y2 + dy));
-        if (p && clearOf(x2, y2, p[0], p[1], 1)) {
+        if (p && !clipped(x2, y2) && clearOf(x2, y2, p[0], p[1], 1)) {
           rc.push(i2);
           shape.push(1);
         }
         continue;
       }
+      if (clipped(x2, y2)) continue;
       let road = false, full = true;
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
         if (!dx && !dy) continue;
@@ -31548,7 +31572,7 @@ void main() {
     while (k < list.length - 1 && (r -= w[k]) > 0) k++;
     const i = list[k], x = i % W, y = i / W | 0;
     if (list === hc) placeHouse(x, y, t);
-    else setRoad(x, y, t);
+    else setRoad(x, y, t, org.has(i));
   }
   function upgradeStep() {
     const hs = [];
@@ -31852,6 +31876,7 @@ void main() {
     if (t === "clear") return b && b.k !== "road" ? null : "Nothing to clear here";
     if (!S.unlocked.has(t)) return `Unlocks at ${SVC[t].unlock} people`;
     if (S.terrain[i] === WATER) return "You can't build on water";
+    if (clipped(x, y)) return "A street runs across this corner";
     if (b) return "That tile is taken";
     if (S.coins < SVC[t].cost) return `Needs ${SVC[t].cost} coins`;
     return null;
@@ -34942,12 +34967,12 @@ void main() {
   }
   function markRoofs(tpl, pixels) {
     for (const p of tpl.parts) {
-      const g2 = p.geometry, uv = g2.attributes.uv, pos2 = g2.attributes.position, flag = new Float32Array(pos2.count);
-      for (let i = 0; i < pos2.count; i++) {
+      const g2 = p.geometry, uv = g2.attributes.uv, pos3 = g2.attributes.position, flag = new Float32Array(pos3.count);
+      for (let i = 0; i < pos3.count; i++) {
         const x = Math.min(pixels.width - 1, Math.floor(uv.getX(i) * pixels.width));
         const y = Math.min(pixels.height - 1, Math.floor(uv.getY(i) * pixels.height));
         const k = (y * pixels.width + x) * 4, r = pixels.data[k], gr = pixels.data[k + 1], b = pixels.data[k + 2];
-        flag[i] = gr > r + 40 && gr > b + 10 && pos2.getY(i) > tpl.size.y * 0.3 ? 1 : 0;
+        flag[i] = gr > r + 40 && gr > b + 10 && pos3.getY(i) > tpl.size.y * 0.3 ? 1 : 0;
       }
       g2.setAttribute("roof", new BufferAttribute(flag, 1));
       p.material = roofMaterial(p.material);
@@ -34994,6 +35019,95 @@ void main() {
         models[`${kit}/${name}`] = tpl;
       }));
     }));
+  }
+
+  // src/js/streets.js
+  var SIDEWALK = new Color("#bdc6ee");
+  var GUTTER = new Color("#515566");
+  var ASPHALT = new Color("#666b80");
+  var LINE = new Color("#8e95b3");
+  var BANDS = [
+    [-0.5, -0.4, 0.03, SIDEWALK],
+    [0.4, 0.5, 0.03, SIDEWALK],
+    [-0.4, -0.3, 0.02, GUTTER],
+    [0.3, 0.4, 0.02, GUTTER],
+    [-0.3, 0.3, 0.02, ASPHALT],
+    [-0.015, 0.015, 0.022, LINE]
+  ];
+  var STEPS = 8;
+  var pos;
+  var col;
+  function vert(px, pz, lift, c2) {
+    pos.push(px - W / 2, Math.max(0, hAt(px, pz)) + lift, pz - H / 2);
+    col.push(c2.r, c2.g, c2.b);
+  }
+  function tri(a, b, c2, lift, colour) {
+    if ((b[1] - a[1]) * (c2[0] - a[0]) - (b[0] - a[0]) * (c2[1] - a[1]) < 0) [b, c2] = [c2, b];
+    for (const [px, pz] of [a, b, c2]) vert(px, pz, lift, colour);
+  }
+  function ribbon(samples, bands = BANDS) {
+    for (const [o1, o2, lift, c2] of bands) {
+      for (let k = 0; k < samples.length - 1; k++) {
+        const [ax, az2, atx, atz] = samples[k], [bx, bz, btx, btz] = samples[k + 1];
+        const a1 = [ax - atz * o1, az2 + atx * o1], a2 = [ax - atz * o2, az2 + atx * o2];
+        const b1 = [bx - btz * o1, bz + btx * o1], b2 = [bx - btz * o2, bz + btx * o2];
+        tri(a1, a2, b2, lift, c2);
+        tri(a1, b2, b1, lift, c2);
+      }
+    }
+  }
+  function curve(a, c2, b) {
+    const out = [];
+    for (let k = 0; k <= STEPS; k++) {
+      const t = k / STEPS, u = 1 - t;
+      const x = u * u * a[0] + 2 * u * t * c2[0] + t * t * b[0], z = u * u * a[1] + 2 * u * t * c2[1] + t * t * b[1];
+      let tx = 2 * u * (c2[0] - a[0]) + 2 * t * (b[0] - c2[0]), tz = 2 * u * (c2[1] - a[1]) + 2 * t * (b[1] - c2[1]);
+      const l = Math.hypot(tx, tz) || 1;
+      out.push([x, z, tx / l, tz / l]);
+    }
+    return out;
+  }
+  var line = (a, b) => curve(a, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], b);
+  function sector(cx, cz, r0, r1, a0, a1, lift, c2) {
+    const n2 = 12;
+    for (let k = 0; k < n2; k++) {
+      const p = a0 + (a1 - a0) * k / n2, q2 = a0 + (a1 - a0) * (k + 1) / n2;
+      const i0 = [cx + Math.cos(p) * r0, cz + Math.sin(p) * r0], i1 = [cx + Math.cos(q2) * r0, cz + Math.sin(q2) * r0];
+      const o0 = [cx + Math.cos(p) * r1, cz + Math.sin(p) * r1], o1 = [cx + Math.cos(q2) * r1, cz + Math.sin(q2) * r1];
+      tri(i0, o0, o1, lift, c2);
+      tri(i0, o1, i1, lift, c2);
+    }
+  }
+  function streetGeometry() {
+    pos = [];
+    col = [];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!isOrgRoad(x, y)) continue;
+      const c2 = [x + 0.5, y + 0.5], links = roadLinks(x, y);
+      const ends = links.map(([dx, dy]) => [c2[0] + dx * 0.5, c2[1] + dy * 0.5]);
+      if (links.length === 2) ribbon(curve(ends[0], c2, ends[1]));
+      else if (links.length === 1) {
+        ribbon(line(ends[0], c2));
+        const away = Math.atan2(-links[0][1], -links[0][0]);
+        sector(c2[0], c2[1], 0, 0.4, away - Math.PI / 2, away + Math.PI / 2, 0.02, ASPHALT);
+        sector(c2[0], c2[1], 0.3, 0.4, away - Math.PI / 2, away + Math.PI / 2, 0.021, GUTTER);
+        sector(c2[0], c2[1], 0.4, 0.5, away - Math.PI / 2, away + Math.PI / 2, 0.03, SIDEWALK);
+      } else if (!links.length) {
+        sector(c2[0], c2[1], 0, 0.4, 0, Math.PI * 2, 0.02, ASPHALT);
+        sector(c2[0], c2[1], 0.4, 0.5, 0, Math.PI * 2, 0.03, SIDEWALK);
+      } else {
+        sector(c2[0], c2[1], 0, 0.42, 0, Math.PI * 2, 0.021, ASPHALT);
+        links.forEach(([dx, dy], k) => {
+          const l = Math.hypot(dx, dy);
+          ribbon(line([c2[0] + dx / l * 0.4, c2[1] + dy / l * 0.4], ends[k]));
+        });
+      }
+    }
+    const g2 = new BufferGeometry();
+    g2.setAttribute("position", new Float32BufferAttribute(pos, 3));
+    g2.setAttribute("color", new Float32BufferAttribute(col, 3));
+    g2.computeVertexNormals();
+    return g2;
   }
 
   // src/js/render.js
@@ -35046,8 +35160,9 @@ void main() {
       m = m >> 1 | (m & 1) << 3;
     }
   }
+  var FACE_ORDER = [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]];
   function facing(x, y, fallback) {
-    for (const [dx, dy, rot] of [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]]) if (isRoad(x + dx, y + dy)) return rot;
+    for (const [dx, dy] of FACE_ORDER) if (isRoad(x + dx, y + dy)) return Math.atan2(dx, dy);
     return fallback ? Math.PI / 2 : 0;
   }
   var boxGeo = new BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
@@ -35059,9 +35174,9 @@ void main() {
   var m4 = new Matrix4();
   var shear = new Matrix4();
   var q = new Quaternion();
-  var pos = new Vector3();
+  var pos2 = new Vector3();
   var scl = new Vector3();
-  var col = new Color();
+  var col2 = new Color();
   var nrm = new Vector3();
   var UP = new Vector3(0, 1, 0);
   var debris = new InstancedMesh(boxGeo, new MeshLambertMaterial({ color: "#ffffff" }), 400);
@@ -35089,13 +35204,13 @@ void main() {
   function putModel(key, x, y, z, s, rot, { slope, sy = s, roof, max = N } = {}) {
     const b = batch(key, max);
     if (b.count >= b.max) return;
-    m4.compose(pos.set(0, 0, 0), q.setFromAxisAngle(UP, rot), scl.set(s, sy, s));
+    m4.compose(pos2.set(0, 0, 0), q.setFromAxisAngle(UP, rot), scl.set(s, sy, s));
     if (slope) m4.premultiply(shear.set(1, 0, 0, 0, slope[0], 1, slope[1], 0, 0, 0, 1, 0, 0, 0, 0, 1));
     m4.setPosition(x, y, z);
-    if (roof && models[key].roof) col.set(roof);
+    if (roof && models[key].roof) col2.set(roof);
     for (const m of b.meshes) {
       m.setMatrixAt(b.count, m4);
-      if (roof && models[key].roof) m.setColorAt(b.count, col);
+      if (roof && models[key].roof) m.setColorAt(b.count, col2);
     }
     b.count++;
     b.dirty = true;
@@ -35134,13 +35249,13 @@ void main() {
   }
   function drape(mesh, x, y, inset, lift, color) {
     const g2 = mesh.geometry, k = mesh.userData.count++ * 18, a = inset, b = 1 - inset;
-    col.set(color);
+    col2.set(color);
     [[a, a], [a, b], [b, a], [b, a], [a, b], [b, b]].forEach(([ox, oy], v) => {
       const px = x + ox, py = y + oy;
       g2.attributes.position.array.set([px - W / 2, hAt(px, py) + lift, py - H / 2], k + v * 3);
       cornerNormal(Math.round(px), Math.round(py), nrm);
       g2.attributes.normal.array.set([nrm.x, nrm.y, nrm.z], k + v * 3);
-      g2.attributes.color.array.set([col.r, col.g, col.b], k + v * 3);
+      g2.attributes.color.array.set([col2.r, col2.g, col2.b], k + v * 3);
     });
   }
   function finishDrape(mesh) {
@@ -35266,6 +35381,15 @@ void main() {
   }));
   water.receiveShadow = true;
   scene.add(ground, skirt, water);
+  var streets = new Mesh(new BufferGeometry(), new MeshLambertMaterial({
+    vertexColors: true,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2
+  }));
+  streets.receiveShadow = true;
+  scene.add(streets);
+  var streetRoads = -1;
   function markTerrainDirty() {
     terrainDirty = true;
   }
@@ -35283,6 +35407,7 @@ void main() {
         putModel(FOREST_TREES[k % 2], x - W / 2 + ox, hAt(x + ox, y + oz) - 0.03, y - H / 2 + oz, s, hash(x, y, k + 23) * Math.PI * 2, { max: N * 3 });
       }
     }
+    streetRoads = -1;
     terrainDirty = false;
   }
   function resize() {
@@ -35320,7 +35445,8 @@ void main() {
     return a >= 1 ? 1 : Math.max(0, easeOutBack(a));
   }
   var fitScale = (key, fit) => fit / Math.max(models[key].size.x, models[key].size.z);
-  function drawRoad(x, y) {
+  function drawRoad(x, y, b) {
+    if (b.org) return;
     const mask = (isRoad(x, y - 1) ? 1 : 0) | (isRoad(x + 1, y) ? 2 : 0) | (isRoad(x, y + 1) ? 4 : 0) | (isRoad(x - 1, y) ? 8 : 0);
     const [key, rot] = ROAD[mask];
     const h00 = cornerH(x, y), h10 = cornerH(x + 1, y), h01 = cornerH(x, y + 1), h11 = cornerH(x + 1, y + 1);
@@ -35416,11 +35542,11 @@ void main() {
     }
     floaters.forEach((f, k) => {
       const el = labelsEl.children[k];
-      pos.set(f.x - W / 2, Math.max(0, hAt(f.x, f.y)) + 0.8 + (1 - f.life) * 1.6, f.y - H / 2).project(camera);
+      pos2.set(f.x - W / 2, Math.max(0, hAt(f.x, f.y)) + 0.8 + (1 - f.life) * 1.6, f.y - H / 2).project(camera);
       el.textContent = f.text;
       el.style.color = f.color;
       el.style.opacity = Math.max(0, Math.min(1, f.life * 1.6));
-      el.style.transform = `translate(${((pos.x + 1) / 2 * cssW).toFixed(1)}px, ${((1 - pos.y) / 2 * cssH).toFixed(1)}px) translate(-50%, -50%)`;
+      el.style.transform = `translate(${((pos2.x + 1) / 2 * cssW).toFixed(1)}px, ${((1 - pos2.y) / 2 * cssH).toFixed(1)}px) translate(-50%, -50%)`;
     });
     for (let k = floaters.length; k < labelsEl.children.length; k++) labelsEl.children[k].style.opacity = 0;
   }
@@ -35441,13 +35567,21 @@ void main() {
       for (let i = 0; i < N; i++) if (cov[i]) drape(cover, i % W, i / W | 0, 0, 0.03, "#ffffff");
     }
     clearBatches(false);
+    let roads = 0;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const b = S.build[at(x, y)];
       if (!b) continue;
-      if (b.k === "road") drawRoad(x, y);
-      else if (b.k === "house") drawHouse(x, y, b, t);
+      if (b.k === "road") {
+        roads++;
+        drawRoad(x, y, b);
+      } else if (b.k === "house") drawHouse(x, y, b, t);
       else if (b.k === "svc") drawSvc(x, y, b, t);
       else if (b.k === "park") drawPark(x, y, b, t);
+    }
+    if (roads !== streetRoads) {
+      streets.geometry.dispose();
+      streets.geometry = streetGeometry();
+      streetRoads = roads;
     }
     for (const n2 of S.needs) drawNeed(n2, t);
     if (hover && tool) drawHover();
@@ -35456,9 +35590,9 @@ void main() {
     for (const p of particles) {
       if (debris.count >= 400) break;
       const s = p.size * Math.max(0, p.life);
-      m4.compose(pos.set(p.x - W / 2, Math.max(0, hAt(p.x, p.z)) + p.h, p.z - H / 2), q.identity(), scl.set(s, s, s));
+      m4.compose(pos2.set(p.x - W / 2, Math.max(0, hAt(p.x, p.z)) + p.h, p.z - H / 2), q.identity(), scl.set(s, s, s));
       debris.setMatrixAt(debris.count, m4);
-      debris.setColorAt(debris.count++, col.set(p.color));
+      debris.setColorAt(debris.count++, col2.set(p.color));
     }
     debris.instanceMatrix.needsUpdate = true;
     if (debris.instanceColor) debris.instanceColor.needsUpdate = true;
@@ -35501,12 +35635,12 @@ void main() {
       markTerrainDirty();
     }
   }
-  function setRoad(x, y, born) {
+  function setRoad(x, y, born, org = false) {
     if (!inb(x, y)) return;
     const i = at(x, y);
     if (S.terrain[i] === WATER || S.build[i]) return;
     clearForest(i);
-    S.build[i] = { k: "road", born };
+    S.build[i] = { k: "road", born, org };
   }
   function placeHouse(x, y, born) {
     const i = at(x, y);
@@ -35556,6 +35690,15 @@ void main() {
     markTerrainDirty();
   }
   var isRoad = (x, y) => inb(x, y) && S.build[at(x, y)] && S.build[at(x, y)].k === "road";
+  var isOrgRoad = (x, y) => isRoad(x, y) && !!S.build[at(x, y)].org;
+  function roadLinks(x, y) {
+    return DIR8.filter(([dx, dy]) => isRoad(x + dx, y + dy) && (!dx || !dy || isOrgRoad(x, y) && isOrgRoad(x + dx, y + dy) && !isRoad(x + dx, y) && !isRoad(x, y + dy)));
+  }
+  function clipped(x, y) {
+    if (isRoad(x, y)) return false;
+    for (const [sx, sy] of DIR8) if (sx && sy && isOrgRoad(x + sx, y) && isOrgRoad(x, y + sy) && !isRoad(x + sx, y + sy)) return true;
+    return false;
+  }
   function recalc() {
     S.cov = {};
     for (const t of TYPES) S.cov[t] = new Uint8Array(N);

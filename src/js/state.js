@@ -1,7 +1,7 @@
 /* ---------- state ---------- */
 // S is only reassigned here (newState, restore); other modules read it through the live import binding.
 import { W, N, SVC, TYPES, POP } from "./config.js";
-import { inb, at } from "./util.js";
+import { inb, at, DIR8 } from "./util.js";
 import { genTerrain, seedCity, computeStyle } from "./world.js";
 import { pushLog, renderLog } from "./ui.js";
 import { markTerrainDirty } from "./render.js";
@@ -22,6 +22,19 @@ export function newState(seed) {
   markTerrainDirty();
 }
 export const isRoad = (x, y) => inb(x, y) && S.build[at(x, y)] && S.build[at(x, y)].k === "road";
+export const isOrgRoad = (x, y) => isRoad(x, y) && !!S.build[at(x, y)].org;
+// Offsets of the roads (x, y) connects to: every orthogonal road, plus a diagonal one when both tiles are organic
+// streets and neither tile between them is a road (otherwise the street runs through that tile instead).
+export function roadLinks(x, y) {
+  return DIR8.filter(([dx, dy]) => isRoad(x + dx, y + dy) &&
+    (!dx || !dy || (isOrgRoad(x, y) && isOrgRoad(x + dx, y + dy) && !isRoad(x + dx, y) && !isRoad(x, y + dy))));
+}
+// A free tile that a diagonal street cuts across at one corner. It stays free of buildings and roads.
+export function clipped(x, y) {
+  if (isRoad(x, y)) return false;
+  for (const [sx, sy] of DIR8) if (sx && sy && isOrgRoad(x + sx, y) && isOrgRoad(x, y + sy) && !isRoad(x + sx, y + sy)) return true;
+  return false;
+}
 export function recalc() {
   S.cov = {};
   for (const t of TYPES) S.cov[t] = new Uint8Array(N);

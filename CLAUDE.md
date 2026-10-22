@@ -14,7 +14,8 @@ Open it directly in a browser, or serve it with `npx serve .`.
 ## Core idea
 The city grows procedurally on its own: roads, and houses next to roads. Each tile has a district style (`S.style`,
 `computeStyle` in world.js: noise plus lakeshores and slopes). Above a cutoff that rises with population (`organicCut`
-in growth.js) streets grow organically from dead ends (turns, branches, loops, 2-tile clearance, reserved branch spots);
+in growth.js) streets grow organically from dead ends (straight, 45° and 90° turns incl. diagonal steps, branches, loops,
+2-tile clearance, reserved continuation and branch spots);
 below it they follow the 4-tile block lattice (`isLat`). So the old core meanders and later flat expansion is gridded.
 Needs (water, food, jobs, healthcare, education, power) spawn at the city's outskirts.
 When the player builds the matching service within 3 tiles in time, an attractor is added there
@@ -28,6 +29,9 @@ at a time while mood ≥ 35 (`upgradeStep`) and render taller per level, from sm
 - `state.js`: the game state `S` plus `newState`, `recalc`, `attract`, `serialize`/`restore`
 - `world.js`: map generation (`genTerrain`, `computeStyle`, `seedCity`, `setRoad`, `placeHouse`)
 - `growth.js`: `growStep`, `upgradeStep` (procedural growth, weighted by `attract()`; organic street rules in `organicRoad`)
+- Roads are tiles. Organically grown ones carry `org: true` (`setRoad`). `roadLinks(x, y)` in state.js gives a road's
+  connections: orthogonal roads, plus diagonal ones between two organic roads when neither tile between them is a road.
+  Those in-between tiles are `clipped()`: no buildings or roads may go there (growth and `canPlace` both check it).
 - `needs.js`: `spawnNeed`, `solveNeed`, `expireNeed`
 - `actions.js`: `canPlace`, `place` (player building and demolishing)
 - `sim.js`: `step` (simulation tick), `income`, `checkProgress`
@@ -38,6 +42,9 @@ at a time while mood ≥ 35 (`upgradeStep`) and render taller per level, from sm
   Roads are picked by neighbour mask and sheared onto sloped tiles; buildings stand on the tile's lowest corner,
   turned toward the nearest road (`facing`). Lots, parks, road beds and coverage are draped quads.
   One-off objects (markers, badges, ghosts, glows) come from `take()` pools; floating text is HTML in `#labels`.
+- `streets.js`: one generated mesh for all organic roads (Bézier per tile through the centre to each link's edge/corner,
+  Kenney's cross-section, cul-de-sac caps, junction discs); render.js rebuilds it when the road count changes.
+  Grid roads stay Kenney pieces.
 - `terrain.js`: visual-only heightmap on tile corners (water level y = 0, lake beds below), `hAt`, `tileTop`, `tileSpan`,
   plus the ground and edge-skirt geometry. Heights never decide where things may be built; they only shape district
   style and make organic streets avoid climbing.

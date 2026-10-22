@@ -34,12 +34,13 @@ export function computeStyle() {
   }
 }
 export function clearForest(i) { if (S.terrain[i] === FOREST) { S.terrain[i] = GRASS; markTerrainDirty(); } }
-export function setRoad(x, y, born) {
+// org marks a street grown organically: it may link diagonally and is drawn as a generated strip (streets.js).
+export function setRoad(x, y, born, org = false) {
   if (!inb(x, y)) return;
   const i = at(x, y);
   if (S.terrain[i] === WATER || S.build[i]) return;
   clearForest(i);
-  S.build[i] = { k: "road", born };
+  S.build[i] = { k: "road", born, org };
 }
 export function placeHouse(x, y, born) {
   const i = at(x, y);

@@ -1,7 +1,7 @@
 /* ---------- player actions ---------- */
 import { WATER, SVC, SOLVE_R } from "./config.js";
 import { inb, at, compass, now } from "./util.js";
-import { S, recalc } from "./state.js";
+import { S, recalc, clipped } from "./state.js";
 import { clearForest } from "./world.js";
 import { solveNeed } from "./needs.js";
 import { burst, floatText } from "./effects.js";
@@ -13,6 +13,7 @@ export function canPlace(x, y, t) {
   if (t === "clear") return b && b.k !== "road" ? null : "Nothing to clear here";
   if (!S.unlocked.has(t)) return `Unlocks at ${SVC[t].unlock} people`;
   if (S.terrain[i] === WATER) return "You can't build on water";
+  if (clipped(x, y)) return "A street runs across this corner";
   if (b) return "That tile is taken";
   if (S.coins < SVC[t].cost) return `Needs ${SVC[t].cost} coins`;
   return null;

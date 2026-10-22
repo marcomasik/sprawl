@@ -13,6 +13,7 @@ import { hover } from "./input.js";
 import { camera, setViewport, updateCamera } from "./camera.js";
 import { computeHeights, groundGeometry, skirtGeometry, hAt, cornerH, cornerNormal, tileTop, tileSpan } from "./terrain.js";
 import { models } from "./models.js";
+import { streetGeometry } from "./streets.js";
 
 export const cv = $("cv");
 const labelsEl = $("labels");
@@ -64,9 +65,11 @@ for (const [key, mask] of [["square", 0], ["end", 2], ["straight", 10], ["bend",
     m = (m >> 1) | ((m & 1) << 3);
   }
 }
-// Kenney models face +z; turn a building toward the first road beside it.
+// Kenney models face +z; turn a building toward the first road beside it, orthogonal roads first, then diagonal
+// ones (organic streets). Turning by atan2(dx, dy) points +z at offset (dx, dy).
+const FACE_ORDER = [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]];
 function facing(x, y, fallback) {
-  for (const [dx, dy, rot] of [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]]) if (isRoad(x + dx, y + dy)) return rot;
+  for (const [dx, dy] of FACE_ORDER) if (isRoad(x + dx, y + dy)) return Math.atan2(dx, dy);
   return fallback ? Math.PI / 2 : 0;
 }
 
@@ -263,6 +266,14 @@ const water = new THREE.Mesh(new THREE.PlaneGeometry(W, H).rotateX(-Math.PI / 2)
 water.receiveShadow = true;
 scene.add(ground, skirt, water);
 
+// Organic streets: one generated mesh, rebuilt when the road count changes or the terrain is rebuilt.
+const streets = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial({
+  vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+}));
+streets.receiveShadow = true;
+scene.add(streets);
+let streetRoads = -1;
+
 export function markTerrainDirty() { terrainDirty = true; }
 function buildTerrain() {
   computeHeights();
@@ -279,6 +290,7 @@ function buildTerrain() {
       putModel(FOREST_TREES[k % 2], x - W / 2 + ox, hAt(x + ox, y + oz) - 0.03, y - H / 2 + oz, s, hash(x, y, k + 23) * Math.PI * 2, { max: N * 3 });
     }
   }
+  streetRoads = -1;
   terrainDirty = false;
 }
 
@@ -319,7 +331,8 @@ function popScale(b, t, dur) {
 }
 // Fits a model's larger footprint side to `fit` tiles.
 const fitScale = (key, fit) => fit / Math.max(models[key].size.x, models[key].size.z);
-function drawRoad(x, y) {
+function drawRoad(x, y, b) {
+  if (b.org) return;
   const mask = (isRoad(x, y - 1) ? 1 : 0) | (isRoad(x + 1, y) ? 2 : 0) | (isRoad(x, y + 1) ? 4 : 0) | (isRoad(x - 1, y) ? 8 : 0);
   const [key, rot] = ROAD[mask];
   const h00 = cornerH(x, y), h10 = cornerH(x + 1, y), h01 = cornerH(x, y + 1), h11 = cornerH(x + 1, y + 1);
@@ -446,13 +459,19 @@ export function draw(t, dt) {
   }
 
   clearBatches(false);
+  let roads = 0;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const b = S.build[at(x, y)];
     if (!b) continue;
-    if (b.k === "road") drawRoad(x, y);
+    if (b.k === "road") { roads++; drawRoad(x, y, b); }
     else if (b.k === "house") drawHouse(x, y, b, t);
     else if (b.k === "svc") drawSvc(x, y, b, t);
     else if (b.k === "park") drawPark(x, y, b, t);
+  }
+  if (roads !== streetRoads) {
+    streets.geometry.dispose();
+    streets.geometry = streetGeometry();
+    streetRoads = roads;
   }
   for (const n of S.needs) drawNeed(n, t);
   if (hover && tool) drawHover();
