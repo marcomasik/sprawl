@@ -39,6 +39,8 @@ at a time while mood ≥ 35 (`upgradeStep`) and render taller per level, from sm
   plus the ground and edge-skirt geometry. Heights never affect the simulation.
 - `models.js`: loads the embedded Kenney models (`loadModels`, awaited before boot) into `models["kit/name"]`
   templates, re-centred with their base at y = 0 and switched to Lambert materials. Kenney models face +z.
+  Suburban houses get a `roof` vertex flag (roof-green texel and upper 70% of the model) and a shader tweak that
+  replaces those texels with the instance colour; render.js passes `roof` from `ROOF_TILES`, picked by tile hash.
 - `camera.js`: orthographic SimCity 4 style camera; `pan`, `zoomBy`, `rotate` (90° steps)
 - `ui.js`: HUD panels (tool palette, advisor requests, log + ticker, status bar stats and speed state, toast) and the selected `tool`
 - `minimap.js`: north-up overview with the camera outline (`viewFootprint()` from render.js); click/drag calls `centerOn`

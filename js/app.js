@@ -34867,6 +34867,46 @@ void main() {
     if (!lambert.has(m)) lambert.set(m, new MeshLambertMaterial({ map: m.map, color: m.color }));
     return lambert.get(m);
   }
+  var ROOF_REF = 0.4156;
+  var roofed = /* @__PURE__ */ new Map();
+  function roofMaterial(m) {
+    if (roofed.has(m)) return roofed.get(m);
+    const mat = new MeshLambertMaterial({ map: m.map, color: m.color });
+    mat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute float roof;\nvarying float vRoof;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvRoof = roof;");
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying float vRoof;").replace("#include <color_fragment>", `#ifdef USE_COLOR
+  if (vRoof > 0.5) diffuseColor.rgb = vColor.rgb * dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)) / ${ROOF_REF.toFixed(4)};
+#endif`);
+    };
+    mat.customProgramCacheKey = () => "roof";
+    roofed.set(m, mat);
+    return mat;
+  }
+  function markRoofs(tpl, pixels) {
+    for (const p of tpl.parts) {
+      const g2 = p.geometry, uv = g2.attributes.uv, pos2 = g2.attributes.position, flag = new Float32Array(pos2.count);
+      for (let i = 0; i < pos2.count; i++) {
+        const x = Math.min(pixels.width - 1, Math.floor(uv.getX(i) * pixels.width));
+        const y = Math.min(pixels.height - 1, Math.floor(uv.getY(i) * pixels.height));
+        const k = (y * pixels.width + x) * 4, r = pixels.data[k], gr = pixels.data[k + 1], b = pixels.data[k + 2];
+        flag[i] = gr > r + 40 && gr > b + 10 && pos2.getY(i) > tpl.size.y * 0.3 ? 1 : 0;
+      }
+      g2.setAttribute("roof", new BufferAttribute(flag, 1));
+      p.material = roofMaterial(p.material);
+    }
+    tpl.roof = true;
+  }
+  async function readPixels(src) {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    const c2 = document.createElement("canvas");
+    c2.width = img.width;
+    c2.height = img.height;
+    const g2 = c2.getContext("2d");
+    g2.drawImage(img, 0, 0);
+    return g2.getImageData(0, 0, c2.width, c2.height);
+  }
   function template(root) {
     root.updateMatrixWorld(true);
     const parts = [], box = new Box3();
@@ -34879,18 +34919,21 @@ void main() {
     });
     const c2 = box.getCenter(new Vector3());
     for (const p of parts) p.geometry.translate(-c2.x, -box.min.y, -c2.z);
-    return { parts, size: box.getSize(new Vector3()) };
+    return { parts, size: box.getSize(new Vector3()), roof: false };
   }
   async function loadModels() {
     await Promise.all(Object.entries(KITS).map(async ([kit, names]) => {
       const colormap = (await globImport_models_colormap_png(`../models/${kit}/colormap.png`)).default;
+      const pixels = kit === "suburban" ? await readPixels(colormap) : null;
       const manager = new LoadingManager();
       manager.setURLModifier((url) => url.endsWith("colormap.png") ? colormap : url);
       const loader = new GLTFLoader(manager);
       await Promise.all(names.map(async (name) => {
         const bytes = (await globImport_models_glb(`../models/${kit}/${name}.glb`)).default;
         const gltf = await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
-        models[`${kit}/${name}`] = template(gltf.scene);
+        const tpl = template(gltf.scene);
+        if (pixels && name.startsWith("building-type-")) markRoofs(tpl, pixels);
+        models[`${kit}/${name}`] = tpl;
       }));
     }));
   }
@@ -34927,6 +34970,7 @@ void main() {
     ["building-skyscraper-b", "building-skyscraper-d"].map((n2) => "commercial/" + n2)
   ];
   var HOUSE_FIT = [0.72, 0.95, 0.95, 0.95, 0.95, 0.95, 1];
+  var ROOF_TILES = ["#b5573c", "#a0442f", "#c2703f", "#8a4a36", "#6e4431", "#4f3a2f", "#59616a", "#3f444b"];
   var SVC_MODEL = {
     water: "industrial/water-tower",
     food: "industrial/building-j",
@@ -34984,13 +35028,17 @@ void main() {
     }
     return b;
   }
-  function putModel(key, x, y, z, s, rot, slope, max = N, sy = s) {
+  function putModel(key, x, y, z, s, rot, { slope, sy = s, roof, max = N } = {}) {
     const b = batch(key, max);
     if (b.count >= b.max) return;
     m4.compose(pos.set(0, 0, 0), q.setFromAxisAngle(UP, rot), scl.set(s, sy, s));
     if (slope) m4.premultiply(shear.set(1, 0, 0, 0, slope[0], 1, slope[1], 0, 0, 0, 1, 0, 0, 0, 0, 1));
     m4.setPosition(x, y, z);
-    for (const m of b.meshes) m.setMatrixAt(b.count, m4);
+    if (roof && models[key].roof) col.set(roof);
+    for (const m of b.meshes) {
+      m.setMatrixAt(b.count, m4);
+      if (roof && models[key].roof) m.setColorAt(b.count, col);
+    }
     b.count++;
     b.dirty = true;
   }
@@ -35008,6 +35056,11 @@ void main() {
         m.instanceMatrix.clearUpdateRanges();
         m.instanceMatrix.addUpdateRange(0, b.count * 16);
         m.instanceMatrix.needsUpdate = true;
+        if (m.instanceColor) {
+          m.instanceColor.clearUpdateRanges();
+          m.instanceColor.addUpdateRange(0, b.count * 3);
+          m.instanceColor.needsUpdate = true;
+        }
       }
       b.dirty = false;
     }
@@ -35169,7 +35222,7 @@ void main() {
       if (S.terrain[at(x, y)] !== FOREST || S.build[at(x, y)]) continue;
       for (let k = 0; k < 3; k++) {
         const ox = 0.2 + hash(x, y, k + 3) * 0.6, oz = 0.2 + hash(x, y, k + 9) * 0.6, s = 1.3 + hash(x, y, k + 17) * 0.7;
-        putModel(FOREST_TREES[k % 2], x - W / 2 + ox, hAt(x + ox, y + oz) - 0.03, y - H / 2 + oz, s, hash(x, y, k + 23) * Math.PI * 2, null, N * 3);
+        putModel(FOREST_TREES[k % 2], x - W / 2 + ox, hAt(x + ox, y + oz) - 0.03, y - H / 2 + oz, s, hash(x, y, k + 23) * Math.PI * 2, { max: N * 3 });
       }
     }
     terrainDirty = false;
@@ -35215,13 +35268,13 @@ void main() {
     const h00 = cornerH(x, y), h10 = cornerH(x + 1, y), h01 = cornerH(x, y + 1), h11 = cornerH(x + 1, y + 1);
     const slope = [(h10 + h11 - h00 - h01) / 2, (h01 + h11 - h00 - h10) / 2];
     drape(decals, x, y, 0, 5e-3, "#6e7280");
-    putModel(key, wx(x), (h00 + h10 + h01 + h11) / 4 + 0.01, wz(y), 1, rot, slope);
+    putModel(key, wx(x), (h00 + h10 + h01 + h11) / 4 + 0.01, wz(y), 1, rot, { slope });
   }
   function drawHouse(x, y, b, t) {
     const rise = popScale(b, t, 520);
     if (rise <= 0.01) return;
     const set = HOUSES[b.lvl - 1], key = set[b.hue % set.length], s = fitScale(key, HOUSE_FIT[b.lvl - 1]);
-    putModel(key, wx(x), Math.max(0, tileSpan(x, y)[0]), wz(y), s, facing(x, y, b.rot), null, N, s * rise);
+    putModel(key, wx(x), Math.max(0, tileSpan(x, y)[0]), wz(y), s, facing(x, y, b.rot), { sy: s * rise, roof: ROOF_TILES[hash(x, y, 91) * ROOF_TILES.length | 0] });
   }
   function drawSvc(x, y, b, t) {
     const s = popScale(b, t, 420);

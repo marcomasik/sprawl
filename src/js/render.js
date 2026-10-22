@@ -47,6 +47,8 @@ const HOUSES = [
   ["building-skyscraper-b", "building-skyscraper-d"].map(n => "commercial/" + n),
 ];
 const HOUSE_FIT = [0.72, 0.95, 0.95, 0.95, 0.95, 0.95, 1];
+// natural roof tile colours, picked per tile so a street gets a mix: terracotta and clay reds, browns, slate and anthracite
+const ROOF_TILES = ["#b5573c", "#a0442f", "#c2703f", "#8a4a36", "#6e4431", "#4f3a2f", "#59616a", "#3f444b"];
 const SVC_MODEL = {
   water: "industrial/water-tower", food: "industrial/building-j", work: "industrial/building-h",
   health: "commercial/building-c", school: "commercial/building-e", power: "industrial/building-m",
@@ -106,15 +108,19 @@ function batch(key, max) {
   }
   return b;
 }
-// slope = [dy/dx, dy/dz] shears the model onto a tilted tile (roads); buildings stay upright.
-// sy scales height separately, for buildings rising out of the ground.
-function putModel(key, x, y, z, s, rot, slope, max = N, sy = s) {
+// Options: slope = [dy/dx, dy/dz] shears the model onto a tilted tile (roads; buildings stay upright),
+// sy scales height separately (buildings rising out of the ground), roof colours a house's roof, max sizes the batch.
+function putModel(key, x, y, z, s, rot, { slope, sy = s, roof, max = N } = {}) {
   const b = batch(key, max);
   if (b.count >= b.max) return;
   m4.compose(pos.set(0, 0, 0), q.setFromAxisAngle(UP, rot), scl.set(s, sy, s));
   if (slope) m4.premultiply(shear.set(1, 0, 0, 0, slope[0], 1, slope[1], 0, 0, 0, 1, 0, 0, 0, 0, 1));
   m4.setPosition(x, y, z);
-  for (const m of b.meshes) m.setMatrixAt(b.count, m4);
+  if (roof && models[key].roof) col.set(roof);
+  for (const m of b.meshes) {
+    m.setMatrixAt(b.count, m4);
+    if (roof && models[key].roof) m.setColorAt(b.count, col);
+  }
   b.count++;
   b.dirty = true;
 }
@@ -129,6 +135,11 @@ function flushBatches() {
       m.instanceMatrix.clearUpdateRanges();
       m.instanceMatrix.addUpdateRange(0, b.count * 16);
       m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) {
+        m.instanceColor.clearUpdateRanges();
+        m.instanceColor.addUpdateRange(0, b.count * 3);
+        m.instanceColor.needsUpdate = true;
+      }
     }
     b.dirty = false;
   }
@@ -265,7 +276,7 @@ function buildTerrain() {
     if (S.terrain[at(x, y)] !== FOREST || S.build[at(x, y)]) continue;
     for (let k = 0; k < 3; k++) {
       const ox = 0.2 + hash(x, y, k + 3) * 0.6, oz = 0.2 + hash(x, y, k + 9) * 0.6, s = 1.3 + hash(x, y, k + 17) * 0.7;
-      putModel(FOREST_TREES[k % 2], x - W / 2 + ox, hAt(x + ox, y + oz) - 0.03, y - H / 2 + oz, s, hash(x, y, k + 23) * Math.PI * 2, null, N * 3);
+      putModel(FOREST_TREES[k % 2], x - W / 2 + ox, hAt(x + ox, y + oz) - 0.03, y - H / 2 + oz, s, hash(x, y, k + 23) * Math.PI * 2, { max: N * 3 });
     }
   }
   terrainDirty = false;
@@ -314,7 +325,7 @@ function drawRoad(x, y) {
   const h00 = cornerH(x, y), h10 = cornerH(x + 1, y), h01 = cornerH(x, y + 1), h11 = cornerH(x + 1, y + 1);
   const slope = [(h10 + h11 - h00 - h01) / 2, (h01 + h11 - h00 - h10) / 2];
   drape(decals, x, y, 0, 0.005, "#6e7280");
-  putModel(key, wx(x), (h00 + h10 + h01 + h11) / 4 + 0.01, wz(y), 1, rot, slope);
+  putModel(key, wx(x), (h00 + h10 + h01 + h11) / 4 + 0.01, wz(y), 1, rot, { slope });
 }
 // Buildings stand on the tile's lowest corner, so on slopes they sit into the hillside instead of floating.
 // New and upgraded houses rise out of the ground at full footprint, with a small overshoot.
@@ -322,7 +333,7 @@ function drawHouse(x, y, b, t) {
   const rise = popScale(b, t, 520);
   if (rise <= 0.01) return;
   const set = HOUSES[b.lvl - 1], key = set[b.hue % set.length], s = fitScale(key, HOUSE_FIT[b.lvl - 1]);
-  putModel(key, wx(x), Math.max(0, tileSpan(x, y)[0]), wz(y), s, facing(x, y, b.rot), null, N, s * rise);
+  putModel(key, wx(x), Math.max(0, tileSpan(x, y)[0]), wz(y), s, facing(x, y, b.rot), { sy: s * rise, roof: ROOF_TILES[(hash(x, y, 91) * ROOF_TILES.length) | 0] });
 }
 function drawSvc(x, y, b, t) {
   const s = popScale(b, t, 420);
