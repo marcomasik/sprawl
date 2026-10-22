@@ -12,7 +12,10 @@ Open it directly in a browser, or serve it with `npx serve .`.
 - Never edit `css/` or `js/` by hand.
 
 ## Core idea
-The city grows procedurally on its own (roads on a 4-tile block lattice, houses next to roads).
+The city grows procedurally on its own: roads, and houses next to roads. Each tile has a district style (`S.style`,
+`computeStyle` in world.js: noise plus lakeshores and slopes). Above a cutoff that rises with population (`organicCut`
+in growth.js) streets grow organically from dead ends (turns, branches, loops, 2-tile clearance, reserved branch spots);
+below it they follow the 4-tile block lattice (`isLat`). So the old core meanders and later flat expansion is gridded.
 Needs (water, food, jobs, healthcare, education, power) spawn at the city's outskirts.
 When the player builds the matching service within 3 tiles in time, an attractor is added there
 and growth is pulled in that direction. Expired needs push growth away and remove nearby houses.
@@ -23,8 +26,8 @@ at a time while mood ≥ 35 (`upgradeStep`) and render taller per level, from sm
 - `config.js`: constants; `SVC` holds building types, costs, coverage radius, unlock population
 - `util.js`, `noise.js`: helpers and value noise
 - `state.js`: the game state `S` plus `newState`, `recalc`, `attract`, `serialize`/`restore`
-- `world.js`: map generation (`genTerrain`, `seedCity`, `setRoad`, `placeHouse`)
-- `growth.js`: `growStep`, `upgradeStep` (procedural growth, weighted by `attract()`)
+- `world.js`: map generation (`genTerrain`, `computeStyle`, `seedCity`, `setRoad`, `placeHouse`)
+- `growth.js`: `growStep`, `upgradeStep` (procedural growth, weighted by `attract()`; organic street rules in `organicRoad`)
 - `needs.js`: `spawnNeed`, `solveNeed`, `expireNeed`
 - `actions.js`: `canPlace`, `place` (player building and demolishing)
 - `sim.js`: `step` (simulation tick), `income`, `checkProgress`
@@ -36,7 +39,8 @@ at a time while mood ≥ 35 (`upgradeStep`) and render taller per level, from sm
   turned toward the nearest road (`facing`). Lots, parks, road beds and coverage are draped quads.
   One-off objects (markers, badges, ghosts, glows) come from `take()` pools; floating text is HTML in `#labels`.
 - `terrain.js`: visual-only heightmap on tile corners (water level y = 0, lake beds below), `hAt`, `tileTop`, `tileSpan`,
-  plus the ground and edge-skirt geometry. Heights never affect the simulation.
+  plus the ground and edge-skirt geometry. Heights never decide where things may be built; they only shape district
+  style and make organic streets avoid climbing.
 - `models.js`: loads the embedded Kenney models (`loadModels`, awaited before boot) into `models["kit/name"]`
   templates, re-centred with their base at y = 0 and switched to Lambert materials. Kenney models face +z.
   Suburban houses get a `roof` vertex flag (roof-green texel and upper 70% of the model) and a shader tweak that

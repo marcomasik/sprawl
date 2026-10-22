@@ -31330,34 +31330,217 @@ void main() {
     floaters = [];
   }
 
+  // src/js/terrain.js
+  var CW = W + 1;
+  var CN = CW * (H + 1);
+  var heights = new Float32Array(CN);
+  var normals = new Float32Array(CN * 3);
+  var SKIRT = -1.4;
+  var cornerH = (cx, cy) => heights[Math.max(0, Math.min(H, cy)) * CW + Math.max(0, Math.min(W, cx))];
+  function hAt(px, py) {
+    const x = Math.max(0, Math.min(W - 1e-6, px)), y = Math.max(0, Math.min(H - 1e-6, py));
+    const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+    const a = cornerH(ix, iy), b = cornerH(ix + 1, iy), c2 = cornerH(ix, iy + 1), d = cornerH(ix + 1, iy + 1);
+    return a + (b - a) * fx + (c2 - a) * fy + (a - b - c2 + d) * fx * fy;
+  }
+  var tileTop = (x, y) => hAt(x + 0.5, y + 0.5);
+  function tileSpan(x, y) {
+    const hs = [cornerH(x, y), cornerH(x + 1, y), cornerH(x, y + 1), cornerH(x + 1, y + 1)];
+    return [Math.min(...hs), Math.max(...hs)];
+  }
+  function cornerNormal(cx, cy, out) {
+    const i = (Math.max(0, Math.min(H, cy)) * CW + Math.max(0, Math.min(W, cx))) * 3;
+    return out.set(normals[i], normals[i + 1], normals[i + 2]);
+  }
+  function distanceTo(isSource) {
+    const d = new Int16Array(N).fill(999), q2 = [];
+    for (let i = 0; i < N; i++) if (isSource(i)) {
+      d[i] = 0;
+      q2.push(i);
+    }
+    for (let k = 0; k < q2.length; k++) {
+      const i = q2[k], x = i % W, y = i / W | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (!inb(x + dx, y + dy)) continue;
+        const j = at(x + dx, y + dy);
+        if (d[j] > d[i] + 1) {
+          d[j] = d[i] + 1;
+          q2.push(j);
+        }
+      }
+    }
+    return d;
+  }
+  function computeHeights() {
+    const toWater = distanceTo((i) => S.terrain[i] === WATER), toLand = distanceTo((i) => S.terrain[i] !== WATER);
+    for (let cy = 0; cy <= H; cy++) for (let cx = 0; cx <= W; cx++) {
+      let land = 0, water2 = 0, dW = 999, dL = 999;
+      for (const [tx, ty] of [[cx - 1, cy - 1], [cx, cy - 1], [cx - 1, cy], [cx, cy]]) {
+        if (!inb(tx, ty)) continue;
+        const i = at(tx, ty);
+        if (S.terrain[i] === WATER) {
+          water2++;
+          dL = Math.min(dL, toLand[i]);
+        } else {
+          land++;
+          dW = Math.min(dW, toWater[i]);
+        }
+      }
+      let h;
+      if (!land) h = -0.25 - 0.16 * Math.min(4, dL);
+      else if (water2) h = -0.12;
+      else {
+        const out = Math.min(1, Math.max(0, (Math.hypot(cx - CX, cy - CY) - 6) / 14));
+        h = 0.1 + 4.2 * out * Math.min(1, dW / 4) * Math.pow(fbm(cx * 1.3 + 200, cy * 1.3 + 200, S.seed + 57), 1.6);
+      }
+      heights[cy * CW + cx] = h;
+    }
+    const v = new Vector3();
+    for (let cy = 0; cy <= H; cy++) for (let cx = 0; cx <= W; cx++) {
+      v.set(cornerH(cx - 1, cy) - cornerH(cx + 1, cy), 2, cornerH(cx, cy - 1) - cornerH(cx, cy + 1)).normalize();
+      normals.set([v.x, v.y, v.z], (cy * CW + cx) * 3);
+    }
+  }
+  var rock = new Color("#8c8a72");
+  var c = new Color();
+  var n = new Vector3();
+  function tileColor(x, y) {
+    const i = at(x, y), sh = S.shade[i], t = S.terrain[i];
+    if (t === WATER) {
+      let deep = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inb(x + dx, y + dy) && S.terrain[at(x + dx, y + dy)] === WATER) deep++;
+      return c.set(mix("#c2b283", "#3f5f63", Math.min(1, deep / 9 * 0.8 + sh * 0.2)));
+    }
+    let shore = false;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (inb(x + dx, y + dy) && S.terrain[at(x + dx, y + dy)] === WATER) shore = true;
+    c.set(shore ? mix("#d7c995", "#c8b97f", sh) : t === FOREST ? mix("#6f9d5c", "#628f50", sh) : mix("#8dba73", "#78a862", sh));
+    const [lo, hi] = tileSpan(x, y);
+    return c.lerp(rock, Math.min(0.55, Math.max(0, (hi - lo - 0.35) * 0.9)));
+  }
+  function groundGeometry() {
+    const p = [], nm = [], cl = [];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      tileColor(x, y);
+      for (const [cx, cy] of [[x, y], [x, y + 1], [x + 1, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]]) {
+        p.push(cx - W / 2, cornerH(cx, cy), cy - H / 2);
+        cornerNormal(cx, cy, n);
+        nm.push(n.x, n.y, n.z);
+        cl.push(c.r, c.g, c.b);
+      }
+    }
+    const g2 = new BufferGeometry();
+    g2.setAttribute("position", new Float32BufferAttribute(p, 3));
+    g2.setAttribute("normal", new Float32BufferAttribute(nm, 3));
+    g2.setAttribute("color", new Float32BufferAttribute(cl, 3));
+    return g2;
+  }
+  function skirtGeometry() {
+    const p = [];
+    const wall = (ax, ay, bx, by) => {
+      const ta = Math.max(0, cornerH(ax, ay)), tb = Math.max(0, cornerH(bx, by));
+      const x0 = ax - W / 2, z0 = ay - H / 2, x1 = bx - W / 2, z1 = by - H / 2;
+      p.push(x0, ta, z0, x0, SKIRT, z0, x1, tb, z1, x1, tb, z1, x0, SKIRT, z0, x1, SKIRT, z1);
+    };
+    for (let x = 0; x < W; x++) {
+      wall(x, 0, x + 1, 0);
+      wall(x + 1, H, x, H);
+    }
+    for (let y = 0; y < H; y++) {
+      wall(0, y + 1, 0, y);
+      wall(W, y, W, y + 1);
+    }
+    const g2 = new BufferGeometry();
+    g2.setAttribute("position", new Float32BufferAttribute(p, 3));
+    g2.computeVertexNormals();
+    return g2;
+  }
+
   // src/js/growth.js
+  var DIR4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  var DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+  var degree = (x, y) => DIR4.filter(([dx, dy]) => isRoad(x + dx, y + dy)).length;
+  var organicCut = () => 0.15 + 0.5 * Math.min(1, S.pop / 2e3);
+  function network(x, y, n2) {
+    const seen = /* @__PURE__ */ new Set([at(x, y)]);
+    let front = [[x, y]];
+    for (let k = 0; k < n2; k++) {
+      const next = [];
+      for (const [fx, fy] of front) for (const [dx, dy] of DIR4) {
+        if (isRoad(fx + dx, fy + dy) && !seen.has(at(fx + dx, fy + dy))) {
+          seen.add(at(fx + dx, fy + dy));
+          next.push([fx + dx, fy + dy]);
+        }
+      }
+      front = next;
+    }
+    return seen;
+  }
+  function clearOf(x, y, px, py, r) {
+    const own = network(x + px, y + py, 4);
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (dx === -2 * px && dy === -2 * py) continue;
+      if (isRoad(x + dx, y + dy) && !own.has(at(x + dx, y + dy))) return false;
+    }
+    return true;
+  }
+  function organicRoad(x, y) {
+    const r4 = DIR4.filter(([dx, dy]) => isRoad(x + dx, y + dy));
+    if (!r4.length || r4.length > 2) return 0;
+    for (const [sx, sy] of DIAG) if (isRoad(x + sx, y) && isRoad(x, y + sy) && isRoad(x + sx, y + sy)) return 0;
+    const [px, py] = r4[0];
+    let w;
+    if (r4.length === 2) w = 0.5;
+    else {
+      if (!clearOf(x, y, px, py, 2)) return 0;
+      const deg = degree(x + px, y + py);
+      if (deg === 0) w = 0.5;
+      else if (deg === 1) w = isRoad(x + 2 * px, y + 2 * py) ? 0.75 : 0.45;
+      else if (deg === 2) w = 0.2;
+      else return 0;
+    }
+    return w * Math.exp(-3 * Math.abs(tileTop(x, y) - tileTop(x + px, y + py)));
+  }
+  function aheadOfDeadEnd(x, y) {
+    return DIR4.some(([dx, dy]) => isRoad(x + dx, y + dy) && degree(x + dx, y + dy) === 1 && isRoad(x + 2 * dx, y + 2 * dy));
+  }
   function growStep() {
-    const hc = [], rc = [], t = now();
+    const hc = [], rc = [], shape = [], t = now(), cut = organicCut();
     for (let y2 = 0; y2 < H; y2++) for (let x2 = 0; x2 < W; x2++) {
       const i2 = at(x2, y2);
       if (S.build[i2] || S.terrain[i2] === WATER || S.needs.some((n2) => n2.x === x2 && n2.y === y2)) continue;
-      if (isLat(x2, y2)) {
-        if (isRoad(x2 + 1, y2) || isRoad(x2 - 1, y2) || isRoad(x2, y2 + 1) || isRoad(x2, y2 - 1)) rc.push(i2);
-      } else {
-        let road = false, full = true;
-        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-          if (!dx && !dy) continue;
-          if (isRoad(x2 + dx, y2 + dy)) road = true;
-          const nb = inb(x2 + dx, y2 + dy) ? S.build[at(x2 + dx, y2 + dy)] : null;
-          if (!nb || nb.k === "road") full = false;
+      if (S.style[i2] > cut) {
+        const w2 = organicRoad(x2, y2);
+        if (w2 > 0) {
+          rc.push(i2);
+          shape.push(w2);
         }
-        if (road) hc.push(i2);
-        else if (full) S.build[i2] = { k: "park", born: t };
+        if (aheadOfDeadEnd(x2, y2) || w2 > 0 && hash(x2, y2, S.seed + 13) < 0.4) continue;
+      } else if (isLat(x2, y2)) {
+        const p = DIR4.find(([dx, dy]) => isRoad(x2 + dx, y2 + dy));
+        if (p && clearOf(x2, y2, p[0], p[1], 1)) {
+          rc.push(i2);
+          shape.push(1);
+        }
+        continue;
       }
+      let road = false, full = true;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        if (isRoad(x2 + dx, y2 + dy)) road = true;
+        const nb = inb(x2 + dx, y2 + dy) ? S.build[at(x2 + dx, y2 + dy)] : null;
+        if (!nb || nb.k === "road") full = false;
+      }
+      if (road) hc.push(i2);
+      else if (full) S.build[i2] = { k: "park", born: t };
     }
     let list = hc.length && (!rc.length || Math.random() < 0.7) ? hc : rc;
     if (!list.length) return;
     let tot = 0;
-    const w = list.map((i2) => {
+    const w = list.map((i2, k2) => {
       const x2 = i2 % W, y2 = i2 / W | 0;
       let s = 0.04 + attract(x2, y2) + 0.35 * Math.exp(-Math.hypot(x2 - CX, y2 - CY) / 7) + 0.06 * covCount(i2) - (S.terrain[i2] === FOREST ? 0.03 : 0);
       s = Math.max(5e-3, s);
-      s = s * s * (0.6 + 0.8 * Math.random());
+      s = s * s * (0.6 + 0.8 * Math.random()) * (list === rc ? shape[k2] : 1);
       tot += s;
       return s;
     });
@@ -31985,131 +32168,6 @@ void main() {
     });
     window.addEventListener("keyup", (e) => held.delete(e.key.toLowerCase()));
     window.addEventListener("blur", () => held.clear());
-  }
-
-  // src/js/terrain.js
-  var CW = W + 1;
-  var CN = CW * (H + 1);
-  var heights = new Float32Array(CN);
-  var normals = new Float32Array(CN * 3);
-  var SKIRT = -1.4;
-  var cornerH = (cx, cy) => heights[Math.max(0, Math.min(H, cy)) * CW + Math.max(0, Math.min(W, cx))];
-  function hAt(px, py) {
-    const x = Math.max(0, Math.min(W - 1e-6, px)), y = Math.max(0, Math.min(H - 1e-6, py));
-    const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
-    const a = cornerH(ix, iy), b = cornerH(ix + 1, iy), c2 = cornerH(ix, iy + 1), d = cornerH(ix + 1, iy + 1);
-    return a + (b - a) * fx + (c2 - a) * fy + (a - b - c2 + d) * fx * fy;
-  }
-  var tileTop = (x, y) => hAt(x + 0.5, y + 0.5);
-  function tileSpan(x, y) {
-    const hs = [cornerH(x, y), cornerH(x + 1, y), cornerH(x, y + 1), cornerH(x + 1, y + 1)];
-    return [Math.min(...hs), Math.max(...hs)];
-  }
-  function cornerNormal(cx, cy, out) {
-    const i = (Math.max(0, Math.min(H, cy)) * CW + Math.max(0, Math.min(W, cx))) * 3;
-    return out.set(normals[i], normals[i + 1], normals[i + 2]);
-  }
-  function distanceTo(isSource) {
-    const d = new Int16Array(N).fill(999), q2 = [];
-    for (let i = 0; i < N; i++) if (isSource(i)) {
-      d[i] = 0;
-      q2.push(i);
-    }
-    for (let k = 0; k < q2.length; k++) {
-      const i = q2[k], x = i % W, y = i / W | 0;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        if (!inb(x + dx, y + dy)) continue;
-        const j = at(x + dx, y + dy);
-        if (d[j] > d[i] + 1) {
-          d[j] = d[i] + 1;
-          q2.push(j);
-        }
-      }
-    }
-    return d;
-  }
-  function computeHeights() {
-    const toWater = distanceTo((i) => S.terrain[i] === WATER), toLand = distanceTo((i) => S.terrain[i] !== WATER);
-    for (let cy = 0; cy <= H; cy++) for (let cx = 0; cx <= W; cx++) {
-      let land = 0, water2 = 0, dW = 999, dL = 999;
-      for (const [tx, ty] of [[cx - 1, cy - 1], [cx, cy - 1], [cx - 1, cy], [cx, cy]]) {
-        if (!inb(tx, ty)) continue;
-        const i = at(tx, ty);
-        if (S.terrain[i] === WATER) {
-          water2++;
-          dL = Math.min(dL, toLand[i]);
-        } else {
-          land++;
-          dW = Math.min(dW, toWater[i]);
-        }
-      }
-      let h;
-      if (!land) h = -0.25 - 0.16 * Math.min(4, dL);
-      else if (water2) h = -0.12;
-      else {
-        const out = Math.min(1, Math.max(0, (Math.hypot(cx - CX, cy - CY) - 6) / 14));
-        h = 0.1 + 4.2 * out * Math.min(1, dW / 4) * Math.pow(fbm(cx * 1.3 + 200, cy * 1.3 + 200, S.seed + 57), 1.6);
-      }
-      heights[cy * CW + cx] = h;
-    }
-    const v = new Vector3();
-    for (let cy = 0; cy <= H; cy++) for (let cx = 0; cx <= W; cx++) {
-      v.set(cornerH(cx - 1, cy) - cornerH(cx + 1, cy), 2, cornerH(cx, cy - 1) - cornerH(cx, cy + 1)).normalize();
-      normals.set([v.x, v.y, v.z], (cy * CW + cx) * 3);
-    }
-  }
-  var rock = new Color("#8c8a72");
-  var c = new Color();
-  var n = new Vector3();
-  function tileColor(x, y) {
-    const i = at(x, y), sh = S.shade[i], t = S.terrain[i];
-    if (t === WATER) {
-      let deep = 0;
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inb(x + dx, y + dy) && S.terrain[at(x + dx, y + dy)] === WATER) deep++;
-      return c.set(mix("#c2b283", "#3f5f63", Math.min(1, deep / 9 * 0.8 + sh * 0.2)));
-    }
-    let shore = false;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (inb(x + dx, y + dy) && S.terrain[at(x + dx, y + dy)] === WATER) shore = true;
-    c.set(shore ? mix("#d7c995", "#c8b97f", sh) : t === FOREST ? mix("#6f9d5c", "#628f50", sh) : mix("#8dba73", "#78a862", sh));
-    const [lo, hi] = tileSpan(x, y);
-    return c.lerp(rock, Math.min(0.55, Math.max(0, (hi - lo - 0.35) * 0.9)));
-  }
-  function groundGeometry() {
-    const p = [], nm = [], cl = [];
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      tileColor(x, y);
-      for (const [cx, cy] of [[x, y], [x, y + 1], [x + 1, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]]) {
-        p.push(cx - W / 2, cornerH(cx, cy), cy - H / 2);
-        cornerNormal(cx, cy, n);
-        nm.push(n.x, n.y, n.z);
-        cl.push(c.r, c.g, c.b);
-      }
-    }
-    const g2 = new BufferGeometry();
-    g2.setAttribute("position", new Float32BufferAttribute(p, 3));
-    g2.setAttribute("normal", new Float32BufferAttribute(nm, 3));
-    g2.setAttribute("color", new Float32BufferAttribute(cl, 3));
-    return g2;
-  }
-  function skirtGeometry() {
-    const p = [];
-    const wall = (ax, ay, bx, by) => {
-      const ta = Math.max(0, cornerH(ax, ay)), tb = Math.max(0, cornerH(bx, by));
-      const x0 = ax - W / 2, z0 = ay - H / 2, x1 = bx - W / 2, z1 = by - H / 2;
-      p.push(x0, ta, z0, x0, SKIRT, z0, x1, tb, z1, x1, tb, z1, x0, SKIRT, z0, x1, SKIRT, z1);
-    };
-    for (let x = 0; x < W; x++) {
-      wall(x, 0, x + 1, 0);
-      wall(x + 1, H, x, H);
-    }
-    for (let y = 0; y < H; y++) {
-      wall(0, y + 1, 0, y);
-      wall(W, y, W, y + 1);
-    }
-    const g2 = new BufferGeometry();
-    g2.setAttribute("position", new Float32BufferAttribute(p, 3));
-    g2.computeVertexNormals();
-    return g2;
   }
 
   // node_modules/three/examples/jsm/utils/BufferGeometryUtils.js
@@ -35427,6 +35485,16 @@ void main() {
       else S.terrain[i] = fbm(x + 50, y + 50, s + 99) > 0.6 && dc > 5 ? FOREST : GRASS;
     }
   }
+  function computeStyle() {
+    computeHeights();
+    S.style = new Float32Array(N);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let shore = 0;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (inb(x + dx, y + dy) && S.terrain[at(x + dx, y + dy)] === WATER) shore = 1;
+      const [lo, hi] = tileSpan(x, y), hill = Math.min(1, (hi - lo) / 0.6);
+      S.style[at(x, y)] = Math.min(1, 0.9 * fbm(x * 0.6 + 300, y * 0.6 + 300, S.seed + 71) - 0.1 + 0.25 * shore + 0.45 * hill);
+    }
+  }
   function clearForest(i) {
     if (S.terrain[i] === FOREST) {
       S.terrain[i] = GRASS;
@@ -35447,7 +35515,7 @@ void main() {
     S.build[i] = { k: "house", lvl: 1, hue: Math.random() * ROOFS.length | 0, rot: Math.random() < 0.5, born };
   }
   function seedCity() {
-    for (let d = -4; d <= 4; d++) {
+    for (let d = -2; d <= 2; d++) {
       setRoad(CX + d, CY, -1e9);
       setRoad(CX, CY + d, -1e9);
     }
@@ -35481,6 +35549,7 @@ void main() {
       started: false
     };
     genTerrain();
+    computeStyle();
     seedCity();
     recalc();
     pushLog("A handful of families settle at the crossroads.", null);
@@ -35549,6 +35618,7 @@ void main() {
       leaveT: 0
     });
     for (const b of S.build) if (b) b.born = -1e9;
+    computeStyle();
     recalc();
     renderLog();
     markTerrainDirty();

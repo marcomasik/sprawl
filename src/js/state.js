@@ -2,7 +2,7 @@
 // S is only reassigned here (newState, restore); other modules read it through the live import binding.
 import { W, N, SVC, TYPES, POP } from "./config.js";
 import { inb, at } from "./util.js";
-import { genTerrain, seedCity } from "./world.js";
+import { genTerrain, seedCity, computeStyle } from "./world.js";
 import { pushLog, renderLog } from "./ui.js";
 import { markTerrainDirty } from "./render.js";
 
@@ -15,6 +15,7 @@ export function newState(seed) {
     nid: 1, rankIdx: 0, unlocked: new Set(["water", "food"]), peak: 0, paused: true, speed: 1, log: [], started: false,
   };
   genTerrain();
+  computeStyle();
   seedCity();
   recalc();
   pushLog("A handful of families settle at the crossroads.", null);
@@ -62,6 +63,7 @@ export function restore(d) {
     growT: 0, econT: 0, leaveT: 0,
   });
   for (const b of S.build) if (b) b.born = -1e9;
+  computeStyle();
   recalc();
   renderLog();
   markTerrainDirty();
