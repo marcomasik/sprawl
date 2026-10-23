@@ -46,15 +46,17 @@ function distanceTo(isSource) {
 export function computeHeights() {
   const toWater = distanceTo(i => S.terrain[i] === WATER), toLand = distanceTo(i => S.terrain[i] !== WATER);
   for (let cy = 0; cy <= H; cy++) for (let cx = 0; cx <= W; cx++) {
-    let land = 0, water = 0, dW = 999, dL = 999;
+    let land = 0, water = 0, dW = 999, dL = 999, road = false;
     for (const [tx, ty] of [[cx - 1, cy - 1], [cx, cy - 1], [cx - 1, cy], [cx, cy]]) {
       if (!inb(tx, ty)) continue;
       const i = at(tx, ty);
       if (S.terrain[i] === WATER) { water++; dL = Math.min(dL, toLand[i]); } else { land++; dW = Math.min(dW, toWater[i]); }
+      if (S.build[i]?.k === "road") road = true;
     }
     let h;
     if (!land) h = -0.25 - 0.16 * Math.min(4, dL);
-    else if (water) h = -0.12;
+    // beaches dip just under the water line, except where a road runs along the shore
+    else if (water) h = road ? 0.04 : -0.12;
     else {
       // flat around the founding crossroads and along shores, rolling hills further out
       const out = Math.min(1, Math.max(0, (Math.hypot(cx - CX, cy - CY) - 6) / 14));
@@ -83,9 +85,10 @@ function tileColor(x, y) {
   const [lo, hi] = tileSpan(x, y);
   return c.lerp(rock, Math.min(0.55, Math.max(0, (hi - lo - 0.35) * 0.9)));
 }
-// One quad per tile with that tile's flat colour and smooth normals from the heightmap.
+// One quad per tile with that tile's flat colour and smooth normals from the heightmap; uv spans the whole map
+// (0..1 over W × H tiles) for the painted road texture.
 export function groundGeometry() {
-  const p = [], nm = [], cl = [];
+  const p = [], nm = [], cl = [], uv = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     tileColor(x, y);
     for (const [cx, cy] of [[x, y], [x, y + 1], [x + 1, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]]) {
@@ -93,12 +96,14 @@ export function groundGeometry() {
       cornerNormal(cx, cy, n);
       nm.push(n.x, n.y, n.z);
       cl.push(c.r, c.g, c.b);
+      uv.push(cx / W, cy / H);
     }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3));
   g.setAttribute("normal", new THREE.Float32BufferAttribute(nm, 3));
   g.setAttribute("color", new THREE.Float32BufferAttribute(cl, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
   return g;
 }
 // Earth walls around the map edge, from the surface (or water line) down to the skirt depth.

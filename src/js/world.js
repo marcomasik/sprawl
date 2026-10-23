@@ -41,6 +41,8 @@ export function setRoad(x, y, born, org = false) {
   if (S.terrain[i] === WATER || S.build[i]) return;
   clearForest(i);
   S.build[i] = { k: "road", born, org };
+  // a shoreline road lifts the beach corners it touches above the water (terrain.js)
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inb(x + dx, y + dy) && S.terrain[at(x + dx, y + dy)] === WATER) { markTerrainDirty(); return; }
 }
 export function placeHouse(x, y, born) {
   const i = at(x, y);

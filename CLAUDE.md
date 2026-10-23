@@ -37,14 +37,15 @@ at a time while mood ≥ 35 (`upgradeStep`) and render taller per level, from sm
 - `sim.js`: `step` (simulation tick), `income`, `checkProgress`
 - `effects.js`: particle and floating-text data (tile units; `h` is height above ground)
 - `render.js`: three.js scene (`draw`, `resize`, `pickTile`). Tile (x, y) is world (x - W/2 + 0.5, h, y - H/2 + 0.5).
-  `HOUSES`, `SVC_MODEL`, `ROAD` map game objects to Kenney models. Each model gets one InstancedMesh per part (`putModel`);
+  `HOUSES` and `SVC_MODEL` map game objects to Kenney models. Each model gets one InstancedMesh per part (`putModel`);
   forest trees are refilled only when `markTerrainDirty()` was called, all other batches every frame.
-  Roads are picked by neighbour mask and sheared onto sloped tiles; buildings stand on the tile's lowest corner,
-  turned toward the nearest road (`facing`). Lots, parks, road beds and coverage are draped quads.
+  Buildings stand on the tile's lowest corner, turned toward the nearest road (`facing`, 45° steps).
+  Lots, parks and coverage are draped quads; roads are painted (see streets.js).
   One-off objects (markers, badges, ghosts, glows) come from `take()` pools; floating text is HTML in `#labels`.
-- `streets.js`: one generated mesh for all organic roads (Bézier per tile through the centre to each link's edge/corner,
-  Kenney's cross-section, cul-de-sac caps, junction discs); render.js rebuilds it when the road count changes.
-  Grid roads stay Kenney pieces.
+- `streets.js`: paints all roads into one map-sized canvas texture (`PX` px per tile): per tile a path from the centre
+  to each link's edge/corner (curved through the centre for two-way tiles), stroked layer by layer (curb, sidewalk,
+  gutter, asphalt, dashed centre line) with round caps, so junctions merge. render.js lays it on a mesh sharing the
+  ground geometry (`roadPaint`), so roads follow the terrain exactly; repainted when the road count changes.
 - `terrain.js`: visual-only heightmap on tile corners (water level y = 0, lake beds below), `hAt`, `tileTop`, `tileSpan`,
   plus the ground and edge-skirt geometry. Heights never decide where things may be built; they only shape district
   style and make organic streets avoid climbing.
@@ -71,6 +72,6 @@ at a time while mood ≥ 35 (`upgradeStep`) and render taller per level, from sm
   so a renamed class must be changed in both places.
 
 ## Models (src/models/)
-- Kenney City Kits (CC0, kenney.nl): `suburban/`, `commercial/`, `industrial/`, `roads/`, each with its own `colormap.png`
+- Kenney City Kits (CC0, kenney.nl): `suburban/`, `commercial/`, `industrial/`, each with its own `colormap.png`
   and `License.txt`. Only the models listed in `KITS` in `models.js` are copied in; adding one means copying the `.glb`
   from the kit's `Models/GLB format/` folder and adding its name to `KITS`.

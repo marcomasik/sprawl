@@ -12,7 +12,6 @@ const KITS = {
     "building-l", "building-m", "building-skyscraper-a", "building-skyscraper-b", "building-skyscraper-c", "building-skyscraper-d",
     "building-skyscraper-e"],
   industrial: ["water-tower", "building-j", "building-h", "building-m"],
-  roads: ["road-straight", "road-bend", "road-intersection", "road-crossroad", "road-end", "road-square"],
 };
 
 // "kit/name" -> { parts: [{ geometry, material }], size, roof }, geometry centred on x/z with its base at y = 0.

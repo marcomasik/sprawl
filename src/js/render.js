@@ -11,9 +11,9 @@ import { particles, floaters, stepEffects } from "./effects.js";
 import { tool } from "./ui.js";
 import { hover } from "./input.js";
 import { camera, setViewport, updateCamera } from "./camera.js";
-import { computeHeights, groundGeometry, skirtGeometry, hAt, cornerH, cornerNormal, tileTop, tileSpan } from "./terrain.js";
+import { computeHeights, groundGeometry, skirtGeometry, hAt, cornerNormal, tileTop, tileSpan } from "./terrain.js";
 import { models } from "./models.js";
-import { streetGeometry } from "./streets.js";
+import { PX, paintStreets } from "./streets.js";
 
 export const cv = $("cv");
 const labelsEl = $("labels");
@@ -55,16 +55,6 @@ const SVC_MODEL = {
   health: "commercial/building-c", school: "commercial/building-e", power: "industrial/building-m",
 };
 const FOREST_TREES = ["suburban/tree-large", "suburban/tree-small"];
-// Road pieces by neighbour mask (N=1, E=2, S=4, W=8). Each Kenney piece's own connections at rotation 0
-// are tried in all four 90° turns; turning +90° about y maps E->N, S->E, W->S, N->W.
-const ROAD = [];
-for (const [key, mask] of [["square", 0], ["end", 2], ["straight", 10], ["bend", 12], ["intersection", 14], ["crossroad", 15]]) {
-  let m = mask;
-  for (let k = 0; k < 4; k++) {
-    ROAD[m] ??= ["roads/road-" + key, k * Math.PI / 2];
-    m = (m >> 1) | ((m & 1) << 3);
-  }
-}
 // Kenney models face +z; turn a building toward the first road beside it, orthogonal roads first, then diagonal
 // ones (organic streets). Turning by atan2(dx, dy) points +z at offset (dx, dy).
 const FACE_ORDER = [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]];
@@ -82,7 +72,7 @@ const discGeo = new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2);
 // Map overlays (rings, glows, previews) ignore depth so slopes and buildings never hide them.
 const overlay = (opacity = 1) => new THREE.MeshBasicMaterial({ transparent: true, opacity, depthWrite: false, depthTest: false });
 
-const m4 = new THREE.Matrix4(), shear = new THREE.Matrix4(), q = new THREE.Quaternion();
+const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
 const pos = new THREE.Vector3(), scl = new THREE.Vector3(), col = new THREE.Color(), nrm = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -111,14 +101,12 @@ function batch(key, max) {
   }
   return b;
 }
-// Options: slope = [dy/dx, dy/dz] shears the model onto a tilted tile (roads; buildings stay upright),
-// sy scales height separately (buildings rising out of the ground), roof colours a house's roof, max sizes the batch.
-function putModel(key, x, y, z, s, rot, { slope, sy = s, roof, max = N } = {}) {
+// Options: sy scales height separately (buildings rising out of the ground), roof colours a house's roof,
+// max sizes the batch.
+function putModel(key, x, y, z, s, rot, { sy = s, roof, max = N } = {}) {
   const b = batch(key, max);
   if (b.count >= b.max) return;
-  m4.compose(pos.set(0, 0, 0), q.setFromAxisAngle(UP, rot), scl.set(s, sy, s));
-  if (slope) m4.premultiply(shear.set(1, 0, 0, 0, slope[0], 1, slope[1], 0, 0, 0, 1, 0, 0, 0, 0, 1));
-  m4.setPosition(x, y, z);
+  m4.compose(pos.set(x, y, z), q.setFromAxisAngle(UP, rot), scl.set(s, sy, s));
   if (roof && models[key].roof) col.set(roof);
   for (const m of b.meshes) {
     m.setMatrixAt(b.count, m4);
@@ -266,19 +254,30 @@ const water = new THREE.Mesh(new THREE.PlaneGeometry(W, H).rotateX(-Math.PI / 2)
 water.receiveShadow = true;
 scene.add(ground, skirt, water);
 
-// Organic streets: one generated mesh, rebuilt when the road count changes or the terrain is rebuilt.
-const streets = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial({
-  vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+// Roads: painted into a map-sized texture (streets.js) on a second mesh that shares the ground geometry, so they
+// sit exactly on the terrain. Repainted when the road count changes; drawn before water and other overlays.
+const roadCanvas = document.createElement("canvas");
+roadCanvas.width = W * PX;
+roadCanvas.height = H * PX;
+const roadCtx = roadCanvas.getContext("2d");
+const roadTex = new THREE.CanvasTexture(roadCanvas);
+roadTex.colorSpace = THREE.SRGBColorSpace;
+roadTex.flipY = false;
+roadTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+const roadPaint = new THREE.Mesh(ground.geometry, new THREE.MeshLambertMaterial({
+  map: roadTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4,
 }));
-streets.receiveShadow = true;
-scene.add(streets);
-let streetRoads = -1;
+roadPaint.receiveShadow = true;
+roadPaint.renderOrder = -1;
+scene.add(roadPaint);
+let paintedRoads = -1;
 
 export function markTerrainDirty() { terrainDirty = true; }
 function buildTerrain() {
   computeHeights();
   ground.geometry.dispose();
   ground.geometry = groundGeometry();
+  roadPaint.geometry = ground.geometry;
   skirt.geometry.dispose();
   skirt.geometry = skirtGeometry();
 
@@ -290,7 +289,6 @@ function buildTerrain() {
       putModel(FOREST_TREES[k % 2], x - W / 2 + ox, hAt(x + ox, y + oz) - 0.03, y - H / 2 + oz, s, hash(x, y, k + 23) * Math.PI * 2, { max: N * 3 });
     }
   }
-  streetRoads = -1;
   terrainDirty = false;
 }
 
@@ -331,15 +329,6 @@ function popScale(b, t, dur) {
 }
 // Fits a model's larger footprint side to `fit` tiles.
 const fitScale = (key, fit) => fit / Math.max(models[key].size.x, models[key].size.z);
-function drawRoad(x, y, b) {
-  if (b.org) return;
-  const mask = (isRoad(x, y - 1) ? 1 : 0) | (isRoad(x + 1, y) ? 2 : 0) | (isRoad(x, y + 1) ? 4 : 0) | (isRoad(x - 1, y) ? 8 : 0);
-  const [key, rot] = ROAD[mask];
-  const h00 = cornerH(x, y), h10 = cornerH(x + 1, y), h01 = cornerH(x, y + 1), h11 = cornerH(x + 1, y + 1);
-  const slope = [(h10 + h11 - h00 - h01) / 2, (h01 + h11 - h00 - h10) / 2];
-  drape(decals, x, y, 0, 0.005, "#6e7280");
-  putModel(key, wx(x), (h00 + h10 + h01 + h11) / 4 + 0.01, wz(y), 1, rot, { slope });
-}
 // Buildings stand on the tile's lowest corner, so on slopes they sit into the hillside instead of floating.
 // New and upgraded houses rise out of the ground at full footprint, with a small overshoot.
 function drawHouse(x, y, b, t) {
@@ -463,15 +452,15 @@ export function draw(t, dt) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const b = S.build[at(x, y)];
     if (!b) continue;
-    if (b.k === "road") { roads++; drawRoad(x, y, b); }
+    if (b.k === "road") roads++;
     else if (b.k === "house") drawHouse(x, y, b, t);
     else if (b.k === "svc") drawSvc(x, y, b, t);
     else if (b.k === "park") drawPark(x, y, b, t);
   }
-  if (roads !== streetRoads) {
-    streets.geometry.dispose();
-    streets.geometry = streetGeometry();
-    streetRoads = roads;
+  if (roads !== paintedRoads) {
+    paintStreets(roadCtx);
+    roadTex.needsUpdate = true;
+    paintedRoads = roads;
   }
   for (const n of S.needs) drawNeed(n, t);
   if (hover && tool) drawHover();
