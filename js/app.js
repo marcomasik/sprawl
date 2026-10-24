@@ -294,8 +294,8 @@
   });
 
   // src/js/config.js
-  var W = 44;
-  var H = 30;
+  var W = 64;
+  var H = 64;
   var N = W * H;
   var CX = Math.floor(W / 2);
   var CY = Math.floor(H / 2);
@@ -31880,12 +31880,12 @@ void main() {
   var PITCH = 0.62;
   var DIST = 80;
   var MIN_ZOOM = 0.9;
-  var MAX_ZOOM = 5;
+  var MAX_ZOOM = 8;
   var camera = new OrthographicCamera(-1, 1, 1, -1, 1, 300);
   var target = new Vector3();
   var az = Math.PI / 4;
   var azGoal = az;
-  var zoom = 1.3;
+  var zoom = 2.2;
   var zoomGoal = zoom;
   var viewH = 30;
   var viewPx = 1;
@@ -34968,7 +34968,7 @@ void main() {
   }
 
   // src/js/streets.js
-  var PX = 64;
+  var PX = 48;
   var LAYERS = [[1.04, "#7d829c"], [1, "#bdc6ee"], [0.8, "#515566"], [0.6, "#666b80"]];
   var LINE = "#8e95b3";
   function paintStreets(g2) {
@@ -35016,8 +35016,8 @@ void main() {
   var sun = new DirectionalLight("#fff1d6", 2.8);
   sun.position.set(-30, 50, 20);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, near: 1, far: 150 });
+  sun.shadow.mapSize.set(3072, 3072);
+  Object.assign(sun.shadow.camera, { left: -48, right: 48, top: 48, bottom: -48, near: 1, far: 160 });
   sun.shadow.bias = -4e-4;
   sun.shadow.normalBias = 0.03;
   scene.add(sun);
@@ -35659,7 +35659,7 @@ void main() {
     requestAnimationFrame(frame);
   }
   function start(data) {
-    if (data && data.state && data.state.terrain) {
+    if (data && data.state && data.state.terrain && data.state.terrain.length === N) {
       try {
         restore(data.state);
       } catch (e) {

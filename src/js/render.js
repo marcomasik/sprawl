@@ -26,8 +26,9 @@ scene.add(new THREE.HemisphereLight("#e4efff", "#56664a", 1.25));
 const sun = new THREE.DirectionalLight("#fff1d6", 2.8);
 sun.position.set(-30, 50, 20);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, near: 1, far: 150 });
+// shadow area covers the whole map at about 32 shadow pixels per tile
+sun.shadow.mapSize.set(3072, 3072);
+Object.assign(sun.shadow.camera, { left: -48, right: 48, top: 48, bottom: -48, near: 1, far: 160 });
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.03;
 scene.add(sun);

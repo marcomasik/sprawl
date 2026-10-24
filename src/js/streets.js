@@ -7,7 +7,7 @@
 import { W, H } from "./config.js";
 import { isRoad, roadLinks } from "./state.js";
 
-export const PX = 64; // texture pixels per tile
+export const PX = 48; // texture pixels per tile; the texture is W × H × PX², so keep W × PX ≤ 4096
 // [width in tiles, colour], widest first
 const LAYERS = [[1.04, "#7d829c"], [1, "#bdc6ee"], [0.8, "#515566"], [0.6, "#666b80"]];
 const LINE = "#8e95b3";

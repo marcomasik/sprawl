@@ -1,5 +1,5 @@
 /* ---------- game constants ---------- */
-export const W = 44, H = 30, N = W * H, CX = Math.floor(W / 2), CY = Math.floor(H / 2);
+export const W = 64, H = 64, N = W * H, CX = Math.floor(W / 2), CY = Math.floor(H / 2);
 export const GRASS = 0, WATER = 1, FOREST = 2;
 export const SOLVE_R = 3;
 // residents per house level; a house's level is 1 + the number of service types covering it

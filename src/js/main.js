@@ -1,4 +1,5 @@
 /* ---------- boot ---------- */
+import { N } from "./config.js";
 import { $ } from "./util.js";
 import { S, newState, serialize, restore } from "./state.js";
 import { step } from "./sim.js";
@@ -20,7 +21,7 @@ function frame(t) {
   requestAnimationFrame(frame);
 }
 function start(data) {
-  if (data && data.state && data.state.terrain) {
+  if (data && data.state && data.state.terrain && data.state.terrain.length === N) {
     try { restore(data.state); } catch (e) { newState((Math.random() * 1e9) | 0); }
   } else newState((Math.random() * 1e9) | 0);
   buildTools();

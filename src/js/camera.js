@@ -5,11 +5,11 @@ import { W, H } from "./config.js";
 import { reduce } from "./util.js";
 
 const PITCH = 0.62, DIST = 80;
-const MIN_ZOOM = 0.9, MAX_ZOOM = 5;
+const MIN_ZOOM = 0.9, MAX_ZOOM = 8;
 
 export const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 300);
 const target = new THREE.Vector3();
-let az = Math.PI / 4, azGoal = az, zoom = 1.3, zoomGoal = zoom, viewH = 30, viewPx = 1;
+let az = Math.PI / 4, azGoal = az, zoom = 2.2, zoomGoal = zoom, viewH = 30, viewPx = 1;
 
 export function setViewport(w, h) {
   const aspect = w / h, span = (W + H) / Math.SQRT2;
