@@ -35052,7 +35052,6 @@ void main() {
     return fallback ? Math.PI / 2 : 0;
   }
   var boxGeo = new BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
-  var flatGeo = new PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   var ringGeo = new RingGeometry(0.85, 1, 48).rotateX(-Math.PI / 2);
   var lineRingGeo = new RingGeometry(0.97, 1, 96).rotateX(-Math.PI / 2);
   var discGeo = new CircleGeometry(1, 48).rotateX(-Math.PI / 2);
@@ -35228,13 +35227,6 @@ void main() {
       })
     });
   }
-  var glowTex = canvasTexture(128, (g2, s) => {
-    const gr = g2.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-    gr.addColorStop(0, "rgba(255,236,170,1)");
-    gr.addColorStop(1, "rgba(255,236,170,0)");
-    g2.fillStyle = gr;
-    g2.fillRect(0, 0, s, s);
-  });
   function paintNeed(g2, s, n2, def) {
     const c2 = s / 2, R = s * 0.42, frac = Math.max(0, 1 - n2.age / n2.life);
     g2.clearRect(0, 0, s, s);
@@ -35439,13 +35431,6 @@ void main() {
     updateCamera(dt);
     if (terrainDirty) buildTerrain();
     water.material.opacity = reduce ? 0.8 : 0.78 + Math.sin(t / 1800) * 0.03;
-    for (const a of S.attr) {
-      if (a.s <= 0.05) continue;
-      const glow = take("glow", () => new Mesh(flatGeo, new MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false, depthTest: false, blending: AdditiveBlending })));
-      glow.material.opacity = Math.min(0.32, a.s * 0.22) * 1.4;
-      glow.position.set(wx(a.x), Math.max(0, tileTop(a.x, a.y)) + 0.1, wz(a.y));
-      glow.scale.setScalar(12);
-    }
     if (tool && tool !== "clear") {
       cover.material.color.set(SVC[tool].color);
       const cov = S.cov[tool];

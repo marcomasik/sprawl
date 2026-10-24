@@ -65,11 +65,10 @@ function facing(x, y, fallback) {
 
 /* ---------- geometry and materials ---------- */
 const boxGeo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
-const flatGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 const ringGeo = new THREE.RingGeometry(0.85, 1, 48).rotateX(-Math.PI / 2);
 const lineRingGeo = new THREE.RingGeometry(0.97, 1, 96).rotateX(-Math.PI / 2);
 const discGeo = new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2);
-// Map overlays (rings, glows, previews) ignore depth so slopes and buildings never hide them.
+// Map overlays (rings, previews) ignore depth so slopes and buildings never hide them.
 const overlay = (opacity = 1) => new THREE.MeshBasicMaterial({ transparent: true, opacity, depthWrite: false, depthTest: false });
 
 const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
@@ -227,12 +226,6 @@ for (const t in SVC) {
     }),
   });
 }
-const glowTex = canvasTexture(128, (g, s) => {
-  const gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  gr.addColorStop(0, "rgba(255,236,170,1)");
-  gr.addColorStop(1, "rgba(255,236,170,0)");
-  g.fillStyle = gr; g.fillRect(0, 0, s, s);
-});
 function paintNeed(g, s, n, def) {
   const c = s / 2, R = s * 0.42, frac = Math.max(0, 1 - n.age / n.life);
   g.clearRect(0, 0, s, s);
@@ -432,14 +425,6 @@ export function draw(t, dt) {
   updateCamera(dt);
   if (terrainDirty) buildTerrain();
   water.material.opacity = reduce ? 0.8 : 0.78 + Math.sin(t / 1800) * 0.03;
-
-  for (const a of S.attr) {
-    if (a.s <= 0.05) continue;
-    const glow = take("glow", () => new THREE.Mesh(flatGeo, new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending })));
-    glow.material.opacity = Math.min(0.32, a.s * 0.22) * 1.4;
-    glow.position.set(wx(a.x), Math.max(0, tileTop(a.x, a.y)) + 0.1, wz(a.y));
-    glow.scale.setScalar(12);
-  }
 
   if (tool && tool !== "clear") {
     cover.material.color.set(SVC[tool].color);

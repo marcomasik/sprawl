@@ -41,7 +41,7 @@ at a time while mood ≥ 35 (`upgradeStep`) and render taller per level, from sm
   forest trees are refilled only when `markTerrainDirty()` was called, all other batches every frame.
   Buildings stand on the tile's lowest corner, turned toward the nearest road (`facing`, 45° steps).
   Lots, parks and coverage are draped quads; roads are painted (see streets.js).
-  One-off objects (markers, badges, ghosts, glows) come from `take()` pools; floating text is HTML in `#labels`.
+  One-off objects (markers, badges, ghosts) come from `take()` pools; floating text is HTML in `#labels`.
 - `streets.js`: paints all roads into one map-sized canvas texture (`PX` px per tile): per tile a path from the centre
   to each link's edge/corner (curved through the centre for two-way tiles), stroked layer by layer (curb, sidewalk,
   gutter, asphalt, dashed centre line) with round caps, so junctions merge. render.js lays it on a mesh sharing the
