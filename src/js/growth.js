@@ -54,10 +54,18 @@ function organicRoad(x, y) {
   const parents = DIR8.filter(([dx, dy]) => (dx && dy) ? diagonalOk(x, y, dx, dy) : isRoad(x + dx, y + dy));
   if (!parents.length || parents.length > 2) return 0;
   for (const [sx, sy] of DIAG) if (isRoad(x + sx, y) && isRoad(x, y + sy) && isRoad(x + sx, y + sy)) return 0;
+  // the new street leaves each parent tile in direction -(px, py); within 45° of a street that parent already has,
+  // the two would leave a sliver of grass between them
+  for (const [px, py] of parents) {
+    if (roadLinks(x + px, y + py).some(([lx, ly]) => -(lx * px + ly * py) / Math.hypot(lx, ly) / Math.hypot(px, py) > 0.5)) return 0;
+  }
   const [px, py] = parents[0];
   let w;
-  if (parents.length === 2) w = 0.5;
-  else {
+  if (parents.length === 2) {
+    // closing a loop: only around a real block, not when the two streets already meet within 8 steps
+    if (network(x + px, y + py, 8).has(at(x + parents[1][0], y + parents[1][1]))) return 0;
+    w = 0.5;
+  } else {
     if (!clearOf(x, y, px, py, 2)) return 0;
     const links = roadLinks(x + px, y + py);
     if (!links.length) w = 0.5;
@@ -88,18 +96,34 @@ function streetReserve() {
   return keep;
 }
 
+// Distance (Chebyshev, capped at 9) from each tile to the nearest house or service. The town only grows next to what
+// is already built (houses within 2 tiles, new streets within 3), so it spreads outward along the regional roads
+// instead of popping up along them at the map edges. A service the player builds out there can start a neighbourhood.
+function townDistance() {
+  const d = new Uint8Array(N).fill(9);
+  for (let i = 0; i < N; i++) {
+    const b = S.build[i];
+    if (!b || (b.k !== "house" && b.k !== "svc")) continue;
+    const x = i % W, y = (i / W) | 0;
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      if (inb(x + dx, y + dy)) { const j = at(x + dx, y + dy); d[j] = Math.min(d[j], Math.max(Math.abs(dx), Math.abs(dy))); }
+    }
+  }
+  return d;
+}
+
 export function growStep() {
-  const hc = [], rc = [], shape = [], org = new Set(), t = now(), cut = organicCut(), keep = streetReserve();
+  const hc = [], rc = [], shape = [], org = new Set(), t = now(), cut = organicCut(), keep = streetReserve(), near = townDistance();
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = at(x, y);
     if (S.build[i] || S.terrain[i] === WATER || S.needs.some(n => n.x === x && n.y === y)) continue;
     if (S.style[i] > cut) {
-      const w = organicRoad(x, y);
+      const w = near[i] <= 3 ? organicRoad(x, y) : 0;
       if (w > 0) { rc.push(i); shape.push(w); org.add(i); }
       if (keep.has(i) || (w > 0 && hash(x, y, S.seed + 13) < 0.4)) continue;
     } else if (isLat(x, y)) {
       const p = DIR4.find(([dx, dy]) => isRoad(x + dx, y + dy));
-      if (p && !clipped(x, y) && clearOf(x, y, p[0], p[1], 1)) { rc.push(i); shape.push(1); }
+      if (p && near[i] <= 3 && !clipped(x, y) && clearOf(x, y, p[0], p[1], 1)) { rc.push(i); shape.push(1); }
       continue;
     }
     if (clipped(x, y)) continue;
@@ -110,7 +134,7 @@ export function growStep() {
       const nb = inb(x + dx, y + dy) ? S.build[at(x + dx, y + dy)] : null;
       if (!nb || nb.k === "road") full = false;
     }
-    if (road) hc.push(i);
+    if (road && near[i] <= 2) hc.push(i);
     else if (full) S.build[i] = { k: "park", born: t };
   }
   let list = hc.length && (!rc.length || Math.random() < 0.7) ? hc : rc;

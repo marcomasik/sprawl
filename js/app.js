@@ -31447,10 +31447,15 @@ void main() {
     const parents = DIR8.filter(([dx, dy]) => dx && dy ? diagonalOk(x, y, dx, dy) : isRoad(x + dx, y + dy));
     if (!parents.length || parents.length > 2) return 0;
     for (const [sx, sy] of DIAG) if (isRoad(x + sx, y) && isRoad(x, y + sy) && isRoad(x + sx, y + sy)) return 0;
+    for (const [px2, py2] of parents) {
+      if (roadLinks(x + px2, y + py2).some(([lx, ly]) => -(lx * px2 + ly * py2) / Math.hypot(lx, ly) / Math.hypot(px2, py2) > 0.5)) return 0;
+    }
     const [px, py] = parents[0];
     let w;
-    if (parents.length === 2) w = 0.5;
-    else {
+    if (parents.length === 2) {
+      if (network(x + px, y + py, 8).has(at(x + parents[1][0], y + parents[1][1]))) return 0;
+      w = 0.5;
+    } else {
       if (!clearOf(x, y, px, py, 2)) return 0;
       const links = roadLinks(x + px, y + py);
       if (!links.length) w = 0.5;
@@ -31479,13 +31484,28 @@ void main() {
     }
     return keep;
   }
+  function townDistance() {
+    const d = new Uint8Array(N).fill(9);
+    for (let i = 0; i < N; i++) {
+      const b = S.build[i];
+      if (!b || b.k !== "house" && b.k !== "svc") continue;
+      const x = i % W, y = i / W | 0;
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        if (inb(x + dx, y + dy)) {
+          const j = at(x + dx, y + dy);
+          d[j] = Math.min(d[j], Math.max(Math.abs(dx), Math.abs(dy)));
+        }
+      }
+    }
+    return d;
+  }
   function growStep() {
-    const hc = [], rc = [], shape = [], org = /* @__PURE__ */ new Set(), t = now(), cut = organicCut(), keep = streetReserve();
+    const hc = [], rc = [], shape = [], org = /* @__PURE__ */ new Set(), t = now(), cut = organicCut(), keep = streetReserve(), near = townDistance();
     for (let y2 = 0; y2 < H; y2++) for (let x2 = 0; x2 < W; x2++) {
       const i2 = at(x2, y2);
       if (S.build[i2] || S.terrain[i2] === WATER || S.needs.some((n2) => n2.x === x2 && n2.y === y2)) continue;
       if (S.style[i2] > cut) {
-        const w2 = organicRoad(x2, y2);
+        const w2 = near[i2] <= 3 ? organicRoad(x2, y2) : 0;
         if (w2 > 0) {
           rc.push(i2);
           shape.push(w2);
@@ -31494,7 +31514,7 @@ void main() {
         if (keep.has(i2) || w2 > 0 && hash(x2, y2, S.seed + 13) < 0.4) continue;
       } else if (isLat(x2, y2)) {
         const p = DIR4.find(([dx, dy]) => isRoad(x2 + dx, y2 + dy));
-        if (p && !clipped(x2, y2) && clearOf(x2, y2, p[0], p[1], 1)) {
+        if (p && near[i2] <= 3 && !clipped(x2, y2) && clearOf(x2, y2, p[0], p[1], 1)) {
           rc.push(i2);
           shape.push(1);
         }
@@ -31508,7 +31528,7 @@ void main() {
         const nb = inb(x2 + dx, y2 + dy) ? S.build[at(x2 + dx, y2 + dy)] : null;
         if (!nb || nb.k === "road") full = false;
       }
-      if (road) hc.push(i2);
+      if (road && near[i2] <= 2) hc.push(i2);
       else if (full) S.build[i2] = { k: "park", born: t };
     }
     let list = hc.length && (!rc.length || Math.random() < 0.7) ? hc : rc;
@@ -35520,12 +35540,115 @@ void main() {
     clearForest(i);
     S.build[i] = { k: "house", lvl: 1, hue: Math.random() * ROOFS.length | 0, rot: Math.random() < 0.5, born };
   }
-  function seedCity() {
-    for (let d = -2; d <= 2; d++) {
-      setRoad(CX + d, CY, -1e9);
-      setRoad(CX, CY + d, -1e9);
+  var ARMS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+  function pickArms() {
+    const r = Math.random();
+    if (r < 0.4) return [0, 1, 2, 3];
+    if (r < 0.7) {
+      const skip = Math.random() * 4 | 0;
+      return [0, 1, 2, 3].filter((a) => a !== skip);
     }
-    for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1], [2, 1], [-2, -1], [1, 2], [-1, -2], [-3, 1]]) placeHouse(CX + dx, CY + dy, -1e9);
+    if (r < 0.9) return rnd([[0, 2], [1, 3]]);
+    return [Math.random() * 4 | 0];
+  }
+  function edgePoint(arm) {
+    const [dx, dy] = ARMS[arm];
+    for (let k = 0; k < 20; k++) {
+      const off = Math.round((Math.random() - 0.5) * 0.5 * (dx ? H : W));
+      const x = dx ? dx > 0 ? W - 1 : 0 : CX + off, y = dy ? dy > 0 ? H - 1 : 0 : CY + off;
+      if (inb(x, y) && S.terrain[at(x, y)] !== WATER) return [x, y];
+    }
+    return null;
+  }
+  function heap() {
+    const a = [];
+    return {
+      size: () => a.length,
+      push(p, v) {
+        a.push([p, v]);
+        for (let i = a.length - 1; i > 0; ) {
+          const j = i - 1 >> 1;
+          if (a[j][0] <= a[i][0]) break;
+          [a[i], a[j]] = [a[j], a[i]];
+          i = j;
+        }
+      },
+      pop() {
+        const top = a[0], last2 = a.pop();
+        if (a.length) {
+          a[0] = last2;
+          for (let i = 0; ; ) {
+            const l = 2 * i + 1, r = l + 1;
+            let m = i;
+            if (l < a.length && a[l][0] < a[m][0]) m = l;
+            if (r < a.length && a[r][0] < a[m][0]) m = r;
+            if (m === i) break;
+            [a[i], a[m]] = [a[m], a[i]];
+            i = m;
+          }
+        }
+        return top[1];
+      }
+    };
+  }
+  var TURN_COST = [0, 0.35, 1.2];
+  function route(sx, sy, tx, ty) {
+    const best2 = new Float32Array(N * 9).fill(Infinity), from = new Int32Array(N * 9).fill(-1), open = heap();
+    const wet = (x, y) => !inb(x, y) || S.terrain[at(x, y)] === WATER;
+    const start2 = at(sx, sy) * 9 + 8;
+    best2[start2] = 0;
+    open.push(Math.hypot(tx - sx, ty - sy), start2);
+    while (open.size()) {
+      const st = open.pop(), i = st / 9 | 0, dir = st % 9, x = i % W, y = i / W | 0;
+      if (x === tx && y === ty) {
+        const path = [];
+        for (let s = st; s >= 0; s = from[s]) path.push([(s / 9 | 0) % W, (s / 9 | 0) / W | 0]);
+        return path.reverse();
+      }
+      DIR8.forEach(([dx, dy], k) => {
+        const nx = x + dx, ny = y + dy;
+        if (wet(nx, ny) || dx && dy && (wet(nx, y) || wet(x, ny))) return;
+        let turn = 0;
+        if (dir < 8) {
+          const [px, py] = DIR8[dir];
+          const step2 = Math.round(Math.acos(Math.max(-1, Math.min(1, (px * dx + py * dy) / Math.hypot(px, py) / Math.hypot(dx, dy)))) / (Math.PI / 4));
+          if (step2 > 2) return;
+          turn = TURN_COST[step2];
+        }
+        const j = at(nx, ny);
+        let crowd = 0;
+        if (Math.max(Math.abs(nx - CX), Math.abs(ny - CY)) > 2) {
+          for (let ay = -2; ay <= 2; ay++) for (let ax = -2; ax <= 2; ax++) {
+            if (isRoad(nx + ax, ny + ay)) crowd = Math.max(crowd, Math.max(Math.abs(ax), Math.abs(ay)) === 1 ? 20 : 6);
+          }
+        }
+        const cost = Math.hypot(dx, dy) * (1 + (S.terrain[j] === FOREST ? 0.15 : 0) + 0.8 * fbm(nx * 1.5 + 700, ny * 1.5 + 700, S.seed + 19)) + 6 * Math.abs(tileTop(nx, ny) - tileTop(x, y)) + turn + crowd;
+        const ns = j * 9 + k, g2 = best2[st] + cost;
+        if (g2 >= best2[ns]) return;
+        best2[ns] = g2;
+        from[ns] = st;
+        open.push(g2 + Math.hypot(tx - nx, ty - ny), ns);
+      });
+    }
+    return null;
+  }
+  function seedCity() {
+    setRoad(CX, CY, -1e9, true);
+    for (const arm of pickArms()) {
+      for (let k = 0; k < 4; k++) {
+        const end = edgePoint(arm), path = end && route(CX, CY, end[0], end[1]);
+        if (!path) continue;
+        for (const [x, y] of path) setRoad(x, y, -1e9, true);
+        break;
+      }
+    }
+    const spots = [];
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      const x = CX + dx, y = CY + dy;
+      if (!inb(x, y) || S.build[at(x, y)] || S.terrain[at(x, y)] === WATER || clipped(x, y)) continue;
+      if (DIR8.some(([ax, ay]) => isRoad(x + ax, y + ay))) spots.push([x, y]);
+    }
+    for (let k = 0; k < 9 && spots.length; k++) placeHouse(...spots.splice(Math.random() * spots.length | 0, 1)[0], -1e9);
   }
 
   // src/js/state.js

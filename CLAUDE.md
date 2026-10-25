@@ -12,7 +12,10 @@ Open it directly in a browser, or serve it with `npx serve .`.
 - Never edit `css/` or `js/` by hand.
 
 ## Core idea
-The city grows procedurally on its own: roads, and houses next to roads. Each tile has a district style (`S.style`,
+The town is founded where regional roads meet at the map centre (`seedCity` in world.js: 40% four-way, 30% T,
+20% through road, 10% dead end; each arm A*-routed to a map edge around water, mostly straight with noise wiggles).
+It then grows procedurally on its own: roads, and houses next to roads, but only near what is already built
+(houses within 2 tiles of a house or service, new streets within 3; `townDistance` in growth.js). Each tile has a district style (`S.style`,
 `computeStyle` in world.js: noise plus lakeshores and slopes). Above a cutoff that rises with population (`organicCut`
 in growth.js) streets grow organically from dead ends (straight, 45° and 90° turns incl. diagonal steps, branches, loops,
 2-tile clearance, reserved continuation and branch spots);
@@ -27,7 +30,8 @@ at a time while mood ≥ 35 (`upgradeStep`) and render taller per level, from sm
 - `config.js`: constants; `SVC` holds building types, costs, coverage radius, unlock population
 - `util.js`, `noise.js`: helpers and value noise
 - `state.js`: the game state `S` plus `newState`, `recalc`, `attract`, `serialize`/`restore`
-- `world.js`: map generation (`genTerrain`, `computeStyle`, `seedCity`, `setRoad`, `placeHouse`)
+- `world.js`: map generation (`genTerrain`, `computeStyle`, `seedCity` with the regional roads `pickArms`/`route`,
+  `setRoad`, `placeHouse`)
 - `growth.js`: `growStep`, `upgradeStep` (procedural growth, weighted by `attract()`; organic street rules in `organicRoad`)
 - Roads are tiles. Organically grown ones carry `org: true` (`setRoad`). `roadLinks(x, y)` in state.js gives a road's
   connections: orthogonal roads, plus diagonal ones between two organic roads when neither tile between them is a road.
